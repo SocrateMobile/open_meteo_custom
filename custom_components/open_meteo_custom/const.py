@@ -16,7 +16,7 @@ from homeassistant.components.weather import (
 )
 
 DOMAIN = "open_meteo_custom"
-VERSION = "1.4.2"
+VERSION = "1.4.3"
 MANUFACTURER = "Open-Meteo"
 ATTRIBUTION = "Données météo fournies par Open-Meteo & Base Adresse Nationale"
 
