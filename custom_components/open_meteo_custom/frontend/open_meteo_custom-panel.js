@@ -1,5 +1,5 @@
 /**
- * Open-Meteo Custom — Panneau Latéral Interactif & Carte Multi-Couches (v1.4.0)
+ * Open-Meteo Custom — Panneau Latéral Interactif & Carte Multi-Couches (v1.4.4)
  * 
  * Fonctionnalités :
  * 1. Carte interactive Leaflet intégrée 100% locale avec zoom / dézoom / recentrage.
@@ -96,10 +96,27 @@
       this._colorOverlayGroup = null;
       this._isPlaying = false;
       this._playTimer = null;
+      this._resizeObserver = null;
+      this._windowResizeHandler = null;
       this._lat = 48.8566;
       this._lon = 2.3522;
       this._locationName = "Enghien-les-Bains";
       this._cartoApiKey = localStorage.getItem("open_meteo_carto_api_key") || "";
+    }
+
+    disconnectedCallback() {
+      if (this._resizeObserver) {
+        this._resizeObserver.disconnect();
+        this._resizeObserver = null;
+      }
+      if (this._windowResizeHandler) {
+        window.removeEventListener("resize", this._windowResizeHandler);
+        this._windowResizeHandler = null;
+      }
+      if (this._playTimer) {
+        clearInterval(this._playTimer);
+        this._playTimer = null;
+      }
     }
 
     set hass(hass) {
@@ -636,7 +653,7 @@
 
         .map-container {
           width: 100%;
-          height: 480px;
+          height: 520px;
           border-radius: 16px;
           overflow: hidden;
           position: relative;
@@ -647,6 +664,187 @@
         #map {
           width: 100%;
           height: 100%;
+          position: absolute;
+          top: 0;
+          bottom: 0;
+          left: 0;
+          right: 0;
+        }
+
+        /* LEAFLET SHADOW DOM ISOLATION FIX */
+        .leaflet-pane,
+        .leaflet-tile,
+        .leaflet-marker-icon,
+        .leaflet-marker-shadow,
+        .leaflet-tile-container,
+        .leaflet-pane > svg,
+        .leaflet-pane > canvas,
+        .leaflet-zoom-box,
+        .leaflet-image-layer,
+        .leaflet-layer {
+          position: absolute !important;
+          left: 0;
+          top: 0;
+        }
+
+        .leaflet-container {
+          overflow: hidden !important;
+          position: relative !important;
+          width: 100% !important;
+          height: 100% !important;
+          background: #0f172a !important;
+          -webkit-tap-highlight-color: transparent;
+        }
+
+        .leaflet-tile,
+        .leaflet-marker-icon,
+        .leaflet-marker-shadow {
+          -webkit-user-select: none;
+          -moz-user-select: none;
+          user-select: none;
+          -webkit-user-drag: none;
+        }
+
+        .leaflet-container .leaflet-tile {
+          max-width: none !important;
+          max-height: none !important;
+          width: 256px;
+          height: 256px;
+          padding: 0;
+        }
+
+        .leaflet-tile {
+          filter: inherit;
+          visibility: hidden;
+        }
+
+        .leaflet-tile-loaded {
+          visibility: inherit !important;
+        }
+
+        .leaflet-top,
+        .leaflet-bottom {
+          position: absolute;
+          z-index: 1000;
+          pointer-events: none;
+        }
+
+        .leaflet-top {
+          top: 0;
+        }
+
+        .leaflet-right {
+          right: 0;
+        }
+
+        .leaflet-bottom {
+          bottom: 0;
+        }
+
+        .leaflet-left {
+          left: 0;
+        }
+
+        .leaflet-control {
+          float: left;
+          clear: both;
+          pointer-events: auto;
+        }
+
+        .leaflet-control-zoom {
+          border-radius: 8px;
+          overflow: hidden;
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+          background: rgba(15, 23, 42, 0.85);
+          backdrop-filter: blur(8px);
+          margin: 12px;
+        }
+
+        .leaflet-control-zoom a {
+          background: rgba(15, 23, 42, 0.85);
+          color: #f8fafc;
+          display: block;
+          width: 32px;
+          height: 32px;
+          line-height: 32px;
+          text-align: center;
+          text-decoration: none;
+          font-size: 18px;
+          font-weight: bold;
+          cursor: pointer;
+          transition: background 0.2s;
+        }
+
+        .leaflet-control-zoom a:hover {
+          background: #0284c7;
+          color: #ffffff;
+        }
+
+        .leaflet-control-attribution {
+          background: rgba(15, 23, 42, 0.7);
+          padding: 2px 8px;
+          font-size: 10px;
+          color: #94a3b8;
+          border-top-left-radius: 6px;
+        }
+
+        .leaflet-control-attribution a {
+          color: #38bdf8;
+          text-decoration: none;
+        }
+
+        .leaflet-popup {
+          position: absolute;
+          text-align: center;
+          margin-bottom: 20px;
+        }
+
+        .leaflet-popup-content-wrapper {
+          padding: 1px;
+          text-align: left;
+          border-radius: 12px;
+          background: #1e293b;
+          color: #f8fafc;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+          border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        .leaflet-popup-content {
+          margin: 12px 16px;
+          line-height: 1.4;
+          font-size: 0.9rem;
+        }
+
+        .leaflet-popup-tip-container {
+          width: 40px;
+          height: 20px;
+          position: absolute;
+          left: 50%;
+          margin-left: -20px;
+          overflow: hidden;
+          pointer-events: none;
+        }
+
+        .leaflet-popup-tip {
+          width: 17px;
+          height: 17px;
+          padding: 1px;
+          margin: -10px auto 0;
+          transform: rotate(45deg);
+          background: #1e293b;
+          border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        .leaflet-popup-close-button {
+          position: absolute;
+          top: 6px;
+          right: 8px;
+          color: #94a3b8;
+          text-decoration: none;
+          font-size: 16px;
+          font-weight: bold;
+          cursor: pointer;
         }
 
         /* RADAR TIMELINE BAR */
@@ -934,6 +1132,7 @@
       `;
 
       this.shadowRoot.innerHTML = `
+        <link rel="stylesheet" href="${LEAFLET_CSS_URL}">
         <div class="container">
           <!-- HEADER -->
           <div class="header">
@@ -970,10 +1169,10 @@
               </div>
               <div class="map-controls-group">
                 <div class="basemap-switcher" id="basemap-switcher">
-                  <button class="basemap-btn active" data-basemap="dark" title="Fond Sombre Esri (100% gratuit, sans clé API)">🌙 Sombre</button>
-                  <button class="basemap-btn" data-basemap="osm" title="Plan OpenStreetMap (100% gratuit, sans clé API)">🗺️ Rues</button>
-                  <button class="basemap-btn" data-basemap="satellite" title="Satellite Esri (100% gratuit, sans clé API)">🛰️ Satellite</button>
-                  <button class="basemap-btn" id="btn-basemap-carto" data-basemap="carto" style="display:${this._cartoApiKey ? 'flex' : 'none'};" title="Fond CartoDB Dark Matter (Clé active)">🏙️ CartoDB</button>
+                  <button class="basemap-btn ${this._cartoApiKey ? '' : 'active'}" data-basemap="dark" title="Fond Sombre CartoDB Dark Matter (100% fluide à tous les zooms)">🌙 Sombre</button>
+                  <button class="basemap-btn" data-basemap="osm" title="Plan OpenStreetMap (100% gratuit)">🗺️ Rues</button>
+                  <button class="basemap-btn" data-basemap="satellite" title="Satellite Haute Résolution">🛰️ Satellite</button>
+                  <button class="basemap-btn ${this._cartoApiKey ? 'active' : ''}" id="btn-basemap-carto" data-basemap="carto" style="display:${this._cartoApiKey ? 'flex' : 'none'};" title="Fond CartoDB Dark Matter (Clé active)">🏙️ CartoDB</button>
                 </div>
                 <div class="layer-switcher">
                   <button class="layer-btn active" data-layer="rain">🌧️ Pluie</button>
@@ -1238,18 +1437,22 @@
         this._cartoApiKey = val;
         localStorage.setItem("open_meteo_carto_api_key", val);
 
-        if (this._map) {
-          if (this._baseLayers.carto) {
-            this._map.removeLayer(this._baseLayers.carto);
-          }
-          this._baseLayers.carto = L.tileLayer(
-            `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?api_key=${encodeURIComponent(val)}`,
-            {
-              attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; OpenStreetMap',
-              maxZoom: 19,
-              subdomains: "abcd",
-            }
-          );
+        const cartoUrl = `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?api_key=${encodeURIComponent(val)}`;
+
+        if (this._map && this._baseLayers) {
+          this._baseLayers.dark = L.tileLayer(cartoUrl, {
+            attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; OpenStreetMap',
+            maxZoom: 19,
+            maxNativeZoom: 19,
+            subdomains: "abcd",
+          });
+
+          this._baseLayers.carto = L.tileLayer(cartoUrl, {
+            attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; OpenStreetMap',
+            maxZoom: 19,
+            maxNativeZoom: 19,
+            subdomains: "abcd",
+          });
 
           const cartoBtn = root.getElementById("btn-basemap-carto");
           if (cartoBtn) {
@@ -1257,7 +1460,7 @@
             root.querySelectorAll(".basemap-btn").forEach((b) => b.classList.remove("active"));
             cartoBtn.classList.add("active");
           }
-          this._switchBasemap("carto");
+          this._switchBasemap("carto", true);
         }
 
         if (keyStatus) {
@@ -1271,15 +1474,28 @@
         localStorage.removeItem("open_meteo_carto_api_key");
         if (keyInput) keyInput.value = "";
 
-        if (this._map && this._baseLayers.carto) {
-          if (this._activeBasemap === "carto") {
-            this._switchBasemap("dark");
-            const darkBtn = root.querySelector('.basemap-btn[data-basemap="dark"]');
-            root.querySelectorAll(".basemap-btn").forEach((b) => b.classList.remove("active"));
-            if (darkBtn) darkBtn.classList.add("active");
+        const publicDarkUrl = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
+
+        if (this._map && this._baseLayers) {
+          this._baseLayers.dark = L.tileLayer(publicDarkUrl, {
+            attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; OpenStreetMap',
+            maxZoom: 19,
+            maxNativeZoom: 19,
+            subdomains: "abcd",
+          });
+
+          if (this._baseLayers.carto) {
+            if (this._map.hasLayer(this._baseLayers.carto)) {
+              this._map.removeLayer(this._baseLayers.carto);
+            }
+            delete this._baseLayers.carto;
           }
-          this._map.removeLayer(this._baseLayers.carto);
-          delete this._baseLayers.carto;
+
+          const darkBtn = root.querySelector('.basemap-btn[data-basemap="dark"]');
+          root.querySelectorAll(".basemap-btn").forEach((b) => b.classList.remove("active"));
+          if (darkBtn) darkBtn.classList.add("active");
+
+          this._switchBasemap("dark", true);
         }
 
         const cartoBtn = root.getElementById("btn-basemap-carto");
@@ -1287,7 +1503,7 @@
 
         if (keyStatus) {
           keyStatus.style.color = "#94a3b8";
-          keyStatus.textContent = "🗑️ Clé API retirée. Fond par défaut (Esri Sombre) réactivé.";
+          keyStatus.textContent = "🗑️ Clé API retirée. Fond par défaut (Sombre public) réactivé.";
         }
       });
     }
@@ -1304,35 +1520,44 @@
         zoomControl: true,
       });
 
-      // Cartographies 100% gratuites, libres et sans aucune clé API (zéro filigrane)
+      const getDarkUrl = (key) =>
+        key
+          ? `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?api_key=${encodeURIComponent(key)}`
+          : "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
+
+      // Cartographies fluides, multi-niveaux de zoom (0 à 19 sans coupure)
       this._baseLayers = {
-        dark: L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}", {
-          attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
-          maxZoom: 16,
+        dark: L.tileLayer(getDarkUrl(this._cartoApiKey), {
+          attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; OpenStreetMap',
+          maxZoom: 19,
+          maxNativeZoom: 19,
+          subdomains: "abcd",
         }),
         osm: L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
           attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
           maxZoom: 19,
+          maxNativeZoom: 19,
         }),
         satellite: L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
           attribution: 'Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics',
-          maxZoom: 18,
+          maxZoom: 19,
+          maxNativeZoom: 18,
         }),
       };
 
       if (this._cartoApiKey) {
-        this._baseLayers.carto = L.tileLayer(
-          `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?api_key=${encodeURIComponent(this._cartoApiKey)}`,
-          {
-            attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; OpenStreetMap',
-            maxZoom: 19,
-            subdomains: "abcd",
-          }
-        );
+        this._baseLayers.carto = L.tileLayer(getDarkUrl(this._cartoApiKey), {
+          attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; OpenStreetMap',
+          maxZoom: 19,
+          maxNativeZoom: 19,
+          subdomains: "abcd",
+        });
+        this._activeBasemap = "carto";
+        this._baseLayers.carto.addTo(this._map);
+      } else {
+        this._activeBasemap = "dark";
+        this._baseLayers.dark.addTo(this._map);
       }
-
-      this._activeBasemap = "dark";
-      this._baseLayers.dark.addTo(this._map);
 
       // Home marker
       const homeIcon = L.divIcon({
@@ -1346,6 +1571,23 @@
         .bindPopup(`<b>${this._locationName}</b><br>Point de mesure Open-Meteo`);
 
       this._colorOverlayGroup = L.layerGroup().addTo(this._map);
+
+      // Invalidation de la taille du conteneur Leaflet pour garantir un affichage 100% plein écran
+      setTimeout(() => { if (this._map) this._map.invalidateSize(); }, 100);
+      setTimeout(() => { if (this._map) this._map.invalidateSize(); }, 350);
+      setTimeout(() => { if (this._map) this._map.invalidateSize(); }, 800);
+
+      if (window.ResizeObserver) {
+        this._resizeObserver = new ResizeObserver(() => {
+          if (this._map) this._map.invalidateSize();
+        });
+        this._resizeObserver.observe(mapEl);
+      }
+
+      this._windowResizeHandler = () => {
+        if (this._map) this._map.invalidateSize();
+      };
+      window.addEventListener("resize", this._windowResizeHandler);
 
       // Fetch RainViewer radar metadata
       this._fetchRadarMaps();
@@ -1389,6 +1631,8 @@
         this._radarLayer = L.tileLayer(frame.tileUrl, {
           opacity: 0.75,
           zIndex: 10,
+          maxZoom: 19,
+          maxNativeZoom: 12,
         }).addTo(this._map);
       }
 
@@ -1420,14 +1664,23 @@
       }
     }
 
-    _switchBasemap(name) {
-      if (!this._map || !this._baseLayers || !this._baseLayers[name] || this._activeBasemap === name) return;
-      if (this._baseLayers[this._activeBasemap]) {
-        this._map.removeLayer(this._baseLayers[this._activeBasemap]);
-      }
+    _switchBasemap(name, force = false) {
+      if (!this._map || !this._baseLayers || !this._baseLayers[name]) return;
+      if (this._activeBasemap === name && !force) return;
+
+      // Nettoyer tous les calques de fond actifs
+      Object.values(this._baseLayers).forEach((layer) => {
+        if (layer && this._map.hasLayer(layer)) {
+          this._map.removeLayer(layer);
+        }
+      });
+
       this._activeBasemap = name;
       this._baseLayers[name].addTo(this._map);
       this._baseLayers[name].bringToBack();
+      setTimeout(() => {
+        if (this._map) this._map.invalidateSize();
+      }, 50);
     }
 
     _switchLayer(layerName) {
@@ -1471,6 +1724,9 @@
       }
 
       this._updateLegend(layerName);
+      setTimeout(() => {
+        if (this._map) this._map.invalidateSize();
+      }, 50);
     }
 
     _drawAqiZones(entities) {
