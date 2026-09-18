@@ -1,7 +1,14 @@
-# ☀️ Open-Meteo Custom pour Home Assistant (v1.3.0)
+<p align="center">
+  <img src="icon.png" alt="Open-Meteo Custom Logo" width="128" height="128" />
+</p>
 
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/default)
-[![GitHub Release](https://img.shields.io/github/v/release/SocrateMobile/open_meteo_custom)](https://github.com/SocrateMobile/open_meteo_custom/releases)
+<h1 align="center">☀️ Open-Meteo Custom pour Home Assistant</h1>
+
+<p align="center">
+  <a href="https://github.com/hacs/default"><img src="https://img.shields.io/badge/HACS-Custom-41BDF5.svg" alt="HACS Custom" /></a>
+  <a href="https://github.com/SocrateMobile/open_meteo_custom/releases"><img src="https://img.shields.io/github/v/release/SocrateMobile/open_meteo_custom?color=blue" alt="GitHub Release" /></a>
+  <img src="https://img.shields.io/badge/Version-1.3.1-success.svg" alt="Version 1.3.1" />
+</p>
 
 Intégration météo et qualité de l'air haute performance pour Home Assistant, basée sur l'API gratuite Open-Meteo et le géocodage de la Base Adresse Nationale (BAN).
 
