@@ -1,5 +1,5 @@
 /**
- * Open-Meteo Custom — Panneau Latéral Interactif & Carte Multi-Couches (v1.4.6)
+ * Open-Meteo Custom — Panneau Latéral Interactif & Carte Multi-Couches (v1.4.7)
  * 
  * Fonctionnalités :
  * 1. Carte interactive Leaflet intégrée 100% locale avec zoom / dézoom / recentrage.
@@ -1471,6 +1471,18 @@
       root.getElementById("btn-pause-watering")?.addEventListener("click", () => {
         if (this._hass) this._hass.callService("switch", "turn_off", {});
       });
+      root.getElementById("btn-recenter-home")?.addEventListener("click", () => {
+        if (!this._map) return;
+        this._map.flyTo([this._lat, this._lon], 14, {
+          duration: 1.2,
+          easeLinearity: 0.25,
+        });
+        setTimeout(() => {
+          if (this._homeMarker) {
+            this._homeMarker.openPopup();
+          }
+        }, 1200);
+      });
 
       // Carto API Key Modal events
       const modal = root.getElementById("modal-carto-key");
@@ -1624,10 +1636,11 @@
           maxNativeZoom: 19,
           subdomains: "abcd",
         }),
-        osm: L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        osm: L.tileLayer("https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png", {
+          attribution: '&copy; OpenStreetMap France &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
           maxZoom: 19,
           maxNativeZoom: 19,
+          subdomains: "abc",
         }),
         voyager: L.tileLayer(getCartoKeyUrl("voyager"), {
           attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; OpenStreetMap',
@@ -1720,7 +1733,7 @@
           opacity: 0.75,
           zIndex: 10,
           maxZoom: 19,
-          maxNativeZoom: 12,
+          maxNativeZoom: 7, // L'API gratuite RainViewer limite ses tuiles natives au zoom 7. Leaflet extrapole proprement jusqu'au zoom 19 sans afficher "Zoom Level Not Supported"
         }).addTo(this._map);
       }
 
@@ -1756,16 +1769,28 @@
       if (!this._map || !this._baseLayers || !this._baseLayers[name]) return;
       if (this._activeBasemap === name && !force) return;
 
-      // Nettoyer tous les calques de fond actifs
-      Object.values(this._baseLayers).forEach((layer) => {
-        if (layer && this._map.hasLayer(layer)) {
-          this._map.removeLayer(layer);
+      // Nettoyer tous les calques de fond actifs de la carte (élimine tout calque résiduel ou fantôme)
+      this._map.eachLayer((layer) => {
+        if (
+          layer !== this._radarLayer &&
+          layer !== this._colorOverlayGroup &&
+          layer !== this._homeMarker
+        ) {
+          if (layer instanceof L.TileLayer || layer instanceof L.LayerGroup) {
+            this._map.removeLayer(layer);
+          }
         }
       });
 
       this._activeBasemap = name;
       this._baseLayers[name].addTo(this._map);
-      this._baseLayers[name].bringToBack();
+      if (typeof this._baseLayers[name].bringToBack === "function") {
+        this._baseLayers[name].bringToBack();
+      } else if (this._baseLayers[name].eachLayer) {
+        this._baseLayers[name].eachLayer((l) => {
+          if (typeof l.bringToBack === "function") l.bringToBack();
+        });
+      }
       setTimeout(() => {
         if (this._map) this._map.invalidateSize();
       }, 50);
