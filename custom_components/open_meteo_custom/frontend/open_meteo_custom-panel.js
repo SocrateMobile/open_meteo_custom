@@ -1,5 +1,5 @@
 /**
- * Open-Meteo Custom — Panneau Latéral Interactif & Carte Multi-Couches (v1.4.5)
+ * Open-Meteo Custom — Panneau Latéral Interactif & Carte Multi-Couches (v1.4.6)
  * 
  * Fonctionnalités :
  * 1. Carte interactive Leaflet intégrée 100% locale avec zoom / dézoom / recentrage.
@@ -154,6 +154,14 @@
       if (this._hass.config) {
         if (!this._lat && this._hass.config.latitude) this._lat = Number(this._hass.config.latitude);
         if (!this._lon && this._hass.config.longitude) this._lon = Number(this._hass.config.longitude);
+      }
+
+      if (this.shadowRoot) {
+        const btnLoc = this.shadowRoot.getElementById("btn-locate-home");
+        if (btnLoc) {
+          btnLoc.textContent = `🎯 Centrer (${this._locationName})`;
+          btnLoc.title = `Recentrer et zoomer sur ${this._locationName}`;
+        }
       }
     }
 
@@ -578,7 +586,56 @@
           flex-wrap: wrap;
         }
 
-        /* BASEMAP SWITCHER (SANS CLÉ API) */
+        .btn-locate {
+          background: rgba(14, 165, 233, 0.2);
+          border: 1px solid rgba(56, 189, 248, 0.4);
+          color: #38bdf8;
+          padding: 5px 12px;
+          border-radius: 9px;
+          font-size: 0.8rem;
+          font-weight: 700;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          transition: all 0.2s ease;
+          white-space: nowrap;
+        }
+
+        .btn-locate:hover {
+          background: #0284c7;
+          color: #ffffff;
+          box-shadow: 0 0 12px rgba(56, 189, 248, 0.5);
+          transform: translateY(-1px);
+        }
+
+        .btn-locate:active {
+          transform: translateY(0);
+        }
+
+        .custom-home-pin {
+          position: relative;
+        }
+
+        .custom-home-pin::after {
+          content: "";
+          position: absolute;
+          width: 36px;
+          height: 36px;
+          top: -7px;
+          left: -7px;
+          border-radius: 50%;
+          border: 2px solid #38bdf8;
+          animation: pin-pulse 2s infinite ease-out;
+          pointer-events: none;
+        }
+
+        @keyframes pin-pulse {
+          0% { transform: scale(0.6); opacity: 1; }
+          100% { transform: scale(1.8); opacity: 0; }
+        }
+
+        /* BASEMAP SWITCHER */
         .basemap-switcher {
           display: flex;
           background: rgba(15, 23, 42, 0.9);
@@ -1168,11 +1225,14 @@
                 <span id="map-layer-title">Radar des Précipitations en Direct</span>
               </div>
               <div class="map-controls-group">
+                <button class="btn-locate" id="btn-locate-home" title="Recentrer et zoomer sur ${this._locationName}">🎯 Centrer (${this._locationName})</button>
                 <div class="basemap-switcher" id="basemap-switcher">
-                  <button class="basemap-btn ${this._cartoApiKey ? '' : 'active'}" data-basemap="dark" title="Fond Sombre CartoDB Dark Matter (100% fluide à tous les zooms)">🌙 Sombre</button>
-                  <button class="basemap-btn" data-basemap="osm" title="Plan OpenStreetMap (100% gratuit)">🗺️ Rues</button>
-                  <button class="basemap-btn" data-basemap="satellite" title="Satellite Haute Résolution">🛰️ Satellite</button>
-                  <button class="basemap-btn ${this._cartoApiKey ? 'active' : ''}" id="btn-basemap-carto" data-basemap="carto" style="display:${this._cartoApiKey ? 'flex' : 'none'};" title="Fond CartoDB Dark Matter (Clé active)">🏙️ CartoDB</button>
+                  <button class="basemap-btn active" data-basemap="satellite" title="Vue Satellite HD (Esri World Imagery)">🛰️ Satellite</button>
+                  <button class="basemap-btn" data-basemap="hybrid" title="Satellite Hybride (Photos + Noms de Villes et Rues)">🌍 Hybride</button>
+                  <button class="basemap-btn" data-basemap="dark" title="Fond Sombre Élégant (CartoDB Dark Matter)">🌙 Sombre</button>
+                  <button class="basemap-btn" data-basemap="osm" title="Plan Routier Détaillé (OpenStreetMap)">🗺️ Rues</button>
+                  <button class="basemap-btn" data-basemap="voyager" title="Navigation Claire (CartoDB Voyager)">🧭 Navigation</button>
+                  <button class="basemap-btn" data-basemap="topo" title="Relief & Topographie (OpenTopoMap)">⛰️ Relief</button>
                 </div>
                 <div class="layer-switcher">
                   <button class="layer-btn active" data-layer="rain">🌧️ Pluie</button>
@@ -1387,11 +1447,18 @@
         this._setRadarFrame(parseInt(e.target.value, 10));
       });
 
-      // Recenter button
-      root.getElementById("btn-recenter-home")?.addEventListener("click", () => {
-        if (this._map) {
-          this._map.setView([this._lat, this._lon], 11, { animate: true });
-        }
+      // Center & Zoom on postal code / location
+      root.getElementById("btn-locate-home")?.addEventListener("click", () => {
+        if (!this._map) return;
+        this._map.flyTo([this._lat, this._lon], 14, {
+          duration: 1.2,
+          easeLinearity: 0.25,
+        });
+        setTimeout(() => {
+          if (this._homeMarker) {
+            this._homeMarker.openPopup();
+          }
+        }, 1200);
       });
 
       // Shortcut actions
@@ -1437,35 +1504,32 @@
         this._cartoApiKey = val;
         localStorage.setItem("open_meteo_carto_api_key", val);
 
-        const cartoUrl = `https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png?key=${encodeURIComponent(val)}&api_key=${encodeURIComponent(val)}`;
+        const getCartoKeyUrl = (subpath) =>
+          `https://{s}.basemaps.cartocdn.com/rastertiles/${subpath}/{z}/{x}/{y}{r}.png?key=${encodeURIComponent(val)}&api_key=${encodeURIComponent(val)}`;
 
         if (this._map && this._baseLayers) {
-          this._baseLayers.dark = L.tileLayer(cartoUrl, {
+          this._baseLayers.dark = L.tileLayer(getCartoKeyUrl("dark_all"), {
             attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; OpenStreetMap',
             maxZoom: 19,
             maxNativeZoom: 19,
             subdomains: "abcd",
           });
 
-          this._baseLayers.carto = L.tileLayer(cartoUrl, {
+          this._baseLayers.voyager = L.tileLayer(getCartoKeyUrl("voyager"), {
             attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; OpenStreetMap',
             maxZoom: 19,
             maxNativeZoom: 19,
             subdomains: "abcd",
           });
 
-          const cartoBtn = root.getElementById("btn-basemap-carto");
-          if (cartoBtn) {
-            cartoBtn.style.display = "flex";
-            root.querySelectorAll(".basemap-btn").forEach((b) => b.classList.remove("active"));
-            cartoBtn.classList.add("active");
+          if (this._activeBasemap === "dark" || this._activeBasemap === "voyager") {
+            this._switchBasemap(this._activeBasemap, true);
           }
-          this._switchBasemap("carto", true);
         }
 
         if (keyStatus) {
           keyStatus.style.color = "#22c55e";
-          keyStatus.textContent = "✅ Clé API CARTO sauvegardée et fond CartoDB activé !";
+          keyStatus.textContent = "✅ Clé API CARTO sauvegardée et active !";
         }
       });
 
@@ -1474,36 +1538,32 @@
         localStorage.removeItem("open_meteo_carto_api_key");
         if (keyInput) keyInput.value = "";
 
-        const publicDarkUrl = "https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png";
+        const getPublicCartoUrl = (subpath) =>
+          `https://{s}.basemaps.cartocdn.com/rastertiles/${subpath}/{z}/{x}/{y}{r}.png`;
 
         if (this._map && this._baseLayers) {
-          this._baseLayers.dark = L.tileLayer(publicDarkUrl, {
+          this._baseLayers.dark = L.tileLayer(getPublicCartoUrl("dark_all"), {
             attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; OpenStreetMap',
             maxZoom: 19,
             maxNativeZoom: 19,
             subdomains: "abcd",
           });
 
-          if (this._baseLayers.carto) {
-            if (this._map.hasLayer(this._baseLayers.carto)) {
-              this._map.removeLayer(this._baseLayers.carto);
-            }
-            delete this._baseLayers.carto;
+          this._baseLayers.voyager = L.tileLayer(getPublicCartoUrl("voyager"), {
+            attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; OpenStreetMap',
+            maxZoom: 19,
+            maxNativeZoom: 19,
+            subdomains: "abcd",
+          });
+
+          if (this._activeBasemap === "dark" || this._activeBasemap === "voyager") {
+            this._switchBasemap(this._activeBasemap, true);
           }
-
-          const darkBtn = root.querySelector('.basemap-btn[data-basemap="dark"]');
-          root.querySelectorAll(".basemap-btn").forEach((b) => b.classList.remove("active"));
-          if (darkBtn) darkBtn.classList.add("active");
-
-          this._switchBasemap("dark", true);
         }
-
-        const cartoBtn = root.getElementById("btn-basemap-carto");
-        if (cartoBtn) cartoBtn.style.display = "none";
 
         if (keyStatus) {
           keyStatus.style.color = "#94a3b8";
-          keyStatus.textContent = "🗑️ Clé API retirée. Fond par défaut (Sombre public) réactivé.";
+          keyStatus.textContent = "🗑️ Clé API retirée. Fonds CartoDB repassés en mode public.";
         }
       });
     }
@@ -1513,21 +1573,52 @@
       const mapEl = this.shadowRoot.getElementById("map");
       if (!mapEl || this._map) return;
 
-      // Initialize Leaflet map
+      // Initialisation Leaflet avec zoom verrouillé max 19 (évite toute erreur de niveau de zoom)
       this._map = L.map(mapEl, {
         center: [this._lat, this._lon],
-        zoom: 11,
+        zoom: 12,
+        minZoom: 3,
+        maxZoom: 19,
         zoomControl: true,
       });
 
-      const getDarkUrl = (key) =>
-        key
-          ? `https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png?key=${encodeURIComponent(key)}&api_key=${encodeURIComponent(key)}`
-          : "https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png";
+      const getCartoKeyUrl = (subpath) => {
+        const base = `https://{s}.basemaps.cartocdn.com/rastertiles/${subpath}/{z}/{x}/{y}{r}.png`;
+        return this._cartoApiKey
+          ? `${base}?key=${encodeURIComponent(this._cartoApiKey)}&api_key=${encodeURIComponent(this._cartoApiKey)}`
+          : base;
+      };
 
-      // Cartographies fluides, multi-niveaux de zoom (0 à 19 sans coupure)
+      // 6 fonds de carte haute précision : Satellite HD par défaut, Hybride, Sombre, Rues, Navigation, Relief
       this._baseLayers = {
-        dark: L.tileLayer(getDarkUrl(this._cartoApiKey), {
+        satellite: L.tileLayer(
+          "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+          {
+            attribution: 'Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics',
+            maxZoom: 19,
+            maxNativeZoom: 18,
+          }
+        ),
+        hybrid: L.layerGroup([
+          L.tileLayer(
+            "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+            {
+              attribution: 'Tiles &copy; Esri &mdash; Source: Esri, Maxar',
+              maxZoom: 19,
+              maxNativeZoom: 18,
+            }
+          ),
+          L.tileLayer(
+            "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
+            {
+              attribution: 'Labels &copy; Esri',
+              maxZoom: 19,
+              maxNativeZoom: 18,
+              pane: "overlayPane",
+            }
+          ),
+        ]),
+        dark: L.tileLayer(getCartoKeyUrl("dark_all"), {
           attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; OpenStreetMap',
           maxZoom: 19,
           maxNativeZoom: 19,
@@ -1538,37 +1629,34 @@
           maxZoom: 19,
           maxNativeZoom: 19,
         }),
-        satellite: L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
-          attribution: 'Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics',
-          maxZoom: 19,
-          maxNativeZoom: 18,
-        }),
-      };
-
-      if (this._cartoApiKey) {
-        this._baseLayers.carto = L.tileLayer(getDarkUrl(this._cartoApiKey), {
+        voyager: L.tileLayer(getCartoKeyUrl("voyager"), {
           attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; OpenStreetMap',
           maxZoom: 19,
           maxNativeZoom: 19,
           subdomains: "abcd",
-        });
-        this._activeBasemap = "carto";
-        this._baseLayers.carto.addTo(this._map);
-      } else {
-        this._activeBasemap = "dark";
-        this._baseLayers.dark.addTo(this._map);
-      }
+        }),
+        topo: L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", {
+          attribution: 'Map data: &copy; OpenStreetMap, SRTM | Map style: &copy; OpenTopoMap',
+          maxZoom: 19,
+          maxNativeZoom: 17,
+          subdomains: "abc",
+        }),
+      };
 
-      // Home marker
+      // VUE SATELLITE HD PAR DÉFAUT
+      this._activeBasemap = "satellite";
+      this._baseLayers.satellite.addTo(this._map);
+
+      // Home marker avec pulsation visuelle
       const homeIcon = L.divIcon({
         className: "custom-home-pin",
         html: `<div style="background:#0284c7; width:22px; height:22px; border-radius:50%; border:3px solid #38bdf8; box-shadow:0 0 15px #38bdf8;"></div>`,
         iconSize: [22, 22],
         iconAnchor: [11, 11],
       });
-      L.marker([this._lat, this._lon], { icon: homeIcon })
+      this._homeMarker = L.marker([this._lat, this._lon], { icon: homeIcon })
         .addTo(this._map)
-        .bindPopup(`<b>${this._locationName}</b><br>Point de mesure Open-Meteo`);
+        .bindPopup(`<b>📍 ${this._locationName}</b><br>Point de mesure Open-Meteo`);
 
       this._colorOverlayGroup = L.layerGroup().addTo(this._map);
 
