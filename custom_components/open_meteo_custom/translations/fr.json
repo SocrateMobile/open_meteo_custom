@@ -71,6 +71,7 @@
       "precipitation_sum": { "name": "Précipitations du jour" },
       "wind_gusts_max": { "name": "Rafales maximales" },
       "snowfall_sum": { "name": "Chutes de neige du jour" },
+      "temperature": { "name": "Température actuelle" },
       "apparent_temperature": { "name": "Température ressentie" },
       "grass_pollen": { "name": "Pollen de graminées" },
       "birch_pollen": { "name": "Pollen de bouleau" },

@@ -364,6 +364,8 @@ class TestOpenMeteoSensors(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(sensor_map["ozone"], 48.6)
 
         # Weather sensors
+        self.assertEqual(len(SENSOR_DESCRIPTIONS), 21)
+        self.assertEqual(sensor_map["temperature"], 18.5)
         self.assertEqual(sensor_map["uv_index"], 3.8)
         self.assertEqual(sensor_map["uv_index_max"], 4.5)
         self.assertEqual(sensor_map["sunshine_duration"], 8.0)

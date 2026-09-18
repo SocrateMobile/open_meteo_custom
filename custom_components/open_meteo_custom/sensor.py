@@ -51,6 +51,7 @@ from .const import (
     SENSOR_PRECIPITATION_SUM,
     SENSOR_SNOWFALL_SUM,
     SENSOR_SUNSHINE_DURATION,
+    SENSOR_TEMPERATURE,
     SENSOR_UV_INDEX,
     SENSOR_UV_INDEX_MAX,
     SENSOR_WIND_GUSTS_MAX,
@@ -218,6 +219,16 @@ SENSOR_DESCRIPTIONS: tuple[OpenMeteoSensorEntityDescription, ...] = (
             if data.get("forecast", {}).get("daily", {}).get("snowfall_sum")
             else None
         ),
+    ),
+    OpenMeteoSensorEntityDescription(
+        key=SENSOR_TEMPERATURE,
+        translation_key="temperature",
+        name="Température actuelle",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:thermometer",
+        value_fn=lambda data: data.get("forecast", {}).get("current", {}).get("temperature_2m"),
     ),
     OpenMeteoSensorEntityDescription(
         key=SENSOR_APPARENT_TEMPERATURE,

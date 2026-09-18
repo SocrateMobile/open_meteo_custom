@@ -71,6 +71,7 @@
       "precipitation_sum": { "name": "Precipitation Today" },
       "wind_gusts_max": { "name": "Max Wind Gusts" },
       "snowfall_sum": { "name": "Snowfall Today" },
+      "temperature": { "name": "Current Temperature" },
       "apparent_temperature": { "name": "Apparent Temperature" },
       "grass_pollen": { "name": "Grass Pollen" },
       "birch_pollen": { "name": "Birch Pollen" },
