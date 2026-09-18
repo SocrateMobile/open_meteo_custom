@@ -51,7 +51,8 @@
           "update_interval": "Update Interval",
           "enable_air_quality": "Enable Air Quality and Pollens",
           "show_sidebar_panel": "Show interactive panel in sidebar",
-          "wind_gust_threshold": "Strong wind alert threshold (km/h)"
+          "wind_gust_threshold": "Strong wind alert threshold (km/h)",
+          "carto_api_key": "CARTO API Key (optional for CartoDB Dark Matter)"
         }
       }
     }

@@ -20,6 +20,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from .api import OpenMeteoApi
 from .const import (
+    CONF_CARTO_API_KEY,
     CONF_ENABLE_AIR_QUALITY,
     CONF_SHOW_SIDEBAR_PANEL,
     CONF_UPDATE_INTERVAL,
@@ -76,7 +77,11 @@ async def async_register_frontend_and_panel(hass: HomeAssistant, entry: ConfigEn
                     "_panel_custom": {
                         "name": PANEL_NAME,
                         "module_url": module_url,
-                    }
+                    },
+                    "carto_api_key": entry.options.get(
+                        CONF_CARTO_API_KEY,
+                        entry.data.get(CONF_CARTO_API_KEY, ""),
+                    ),
                 },
                 require_admin=False,
                 update=True,

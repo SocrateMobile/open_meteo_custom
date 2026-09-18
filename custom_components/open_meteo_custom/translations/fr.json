@@ -51,7 +51,8 @@
           "update_interval": "Intervalle de mise à jour",
           "enable_air_quality": "Activer la qualité de l'air et les pollens",
           "show_sidebar_panel": "Afficher le panneau interactif dans la barre latérale",
-          "wind_gust_threshold": "Seuil d'alerte de vent fort (km/h)"
+          "wind_gust_threshold": "Seuil d'alerte de vent fort (km/h)",
+          "carto_api_key": "Clé API CARTO (optionnelle pour fond CartoDB Dark Matter)"
         }
       }
     }

@@ -15,12 +15,14 @@ import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import (
+    CONF_CARTO_API_KEY,
     CONF_ENABLE_AIR_QUALITY,
     CONF_LOCATION_NAME,
     CONF_POSTAL_CODE,
     CONF_SHOW_SIDEBAR_PANEL,
     CONF_UPDATE_INTERVAL,
     CONF_WIND_GUST_THRESHOLD,
+    DEFAULT_CARTO_API_KEY,
     DEFAULT_ENABLE_AIR_QUALITY,
     DEFAULT_SHOW_SIDEBAR_PANEL,
     DEFAULT_UPDATE_INTERVAL,
@@ -216,6 +218,10 @@ class OpenMeteoOptionsFlow(config_entries.OptionsFlow):
             CONF_WIND_GUST_THRESHOLD,
             self.config_entry.data.get(CONF_WIND_GUST_THRESHOLD, DEFAULT_WIND_GUST_THRESHOLD),
         )
+        curr_carto = self.config_entry.options.get(
+            CONF_CARTO_API_KEY,
+            self.config_entry.data.get(CONF_CARTO_API_KEY, DEFAULT_CARTO_API_KEY),
+        )
 
         schema = vol.Schema({
             vol.Required(
@@ -238,6 +244,10 @@ class OpenMeteoOptionsFlow(config_entries.OptionsFlow):
                 CONF_WIND_GUST_THRESHOLD,
                 default=float(curr_wind),
             ): vol.Coerce(float),
+            vol.Optional(
+                CONF_CARTO_API_KEY,
+                default=str(curr_carto or ""),
+            ): cv.string,
         })
 
         return self.async_show_form(step_id="init", data_schema=schema)

@@ -16,7 +16,7 @@ from homeassistant.components.weather import (
 )
 
 DOMAIN = "open_meteo_custom"
-VERSION = "1.4.1"
+VERSION = "1.4.2"
 MANUFACTURER = "Open-Meteo"
 ATTRIBUTION = "Données météo fournies par Open-Meteo & Base Adresse Nationale"
 
@@ -27,11 +27,13 @@ CONF_UPDATE_INTERVAL = "update_interval"
 CONF_ENABLE_AIR_QUALITY = "enable_air_quality"
 CONF_SHOW_SIDEBAR_PANEL = "show_sidebar_panel"
 CONF_WIND_GUST_THRESHOLD = "wind_gust_threshold"
+CONF_CARTO_API_KEY = "carto_api_key"
 
 DEFAULT_UPDATE_INTERVAL = 30  # minutes
 DEFAULT_ENABLE_AIR_QUALITY = True
 DEFAULT_SHOW_SIDEBAR_PANEL = True
 DEFAULT_WIND_GUST_THRESHOLD = 50.0  # km/h
+DEFAULT_CARTO_API_KEY = ""
 
 # Panel constants
 PANEL_URL_PATH = "open_meteo_custom"

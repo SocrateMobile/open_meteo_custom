@@ -99,6 +99,7 @@
       this._lat = 48.8566;
       this._lon = 2.3522;
       this._locationName = "Enghien-les-Bains";
+      this._cartoApiKey = localStorage.getItem("open_meteo_carto_api_key") || "";
     }
 
     set hass(hass) {
@@ -124,6 +125,10 @@
             if (state.attributes.longitude) this._lon = Number(state.attributes.longitude);
             if (state.attributes.friendly_name) {
               this._locationName = state.attributes.friendly_name.replace(/^Open-Meteo\s*/i, "") || this._locationName;
+            }
+            if (state.attributes.carto_api_key && !this._cartoApiKey) {
+              this._cartoApiKey = state.attributes.carto_api_key;
+              localStorage.setItem("open_meteo_carto_api_key", this._cartoApiKey);
             }
           }
           break;
@@ -342,6 +347,150 @@
         .btn-refresh:hover {
           background: rgba(56, 189, 248, 0.3);
           transform: translateY(-1px);
+        }
+
+        .btn-key {
+          background: rgba(168, 85, 247, 0.15);
+          border: 1px solid rgba(168, 85, 247, 0.4);
+          color: #c084fc;
+          border-radius: 10px;
+          padding: 8px 14px;
+          font-size: 0.85rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .btn-key:hover {
+          background: rgba(168, 85, 247, 0.3);
+          transform: translateY(-1px);
+        }
+
+        /* MODAL STYLES */
+        .modal-backdrop {
+          display: none;
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100vw;
+          height: 100vh;
+          background: rgba(0, 0, 0, 0.75);
+          backdrop-filter: blur(6px);
+          -webkit-backdrop-filter: blur(6px);
+          z-index: 99999;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .modal-backdrop.open {
+          display: flex;
+        }
+
+        .modal-card {
+          background: #1e293b;
+          border: 1px solid rgba(255, 255, 255, 0.15);
+          border-radius: 18px;
+          padding: 24px;
+          max-width: 500px;
+          width: 90%;
+          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+          position: relative;
+        }
+
+        .modal-card h3 {
+          margin: 0 0 12px 0;
+          font-size: 1.25rem;
+          color: #f8fafc;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .modal-card p {
+          color: #94a3b8;
+          font-size: 0.9rem;
+          line-height: 1.5;
+          margin-bottom: 16px;
+        }
+
+        .modal-card a {
+          color: #38bdf8;
+          text-decoration: underline;
+        }
+
+        .key-input-group {
+          display: flex;
+          gap: 8px;
+          margin-bottom: 12px;
+        }
+
+        .key-input {
+          flex: 1;
+          background: #0f172a;
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          border-radius: 10px;
+          padding: 10px 14px;
+          color: #f8fafc;
+          font-size: 0.9rem;
+          outline: none;
+        }
+
+        .key-input:focus {
+          border-color: #38bdf8;
+          box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.3);
+        }
+
+        .btn-modal-save {
+          background: #0284c7;
+          border: none;
+          color: white;
+          padding: 10px 16px;
+          border-radius: 10px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: background 0.2s;
+        }
+
+        .btn-modal-save:hover {
+          background: #0369a1;
+        }
+
+        .btn-modal-clear {
+          background: rgba(239, 68, 68, 0.2);
+          border: 1px solid rgba(239, 68, 68, 0.4);
+          color: #ef4444;
+          padding: 10px 14px;
+          border-radius: 10px;
+          font-weight: 600;
+          cursor: pointer;
+        }
+
+        .key-status-msg {
+          font-size: 0.85rem;
+          min-height: 20px;
+          margin-bottom: 16px;
+        }
+
+        .modal-footer {
+          display: flex;
+          justify-content: flex-end;
+        }
+
+        .btn-modal-close {
+          background: transparent;
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          color: #94a3b8;
+          padding: 8px 16px;
+          border-radius: 8px;
+          cursor: pointer;
+        }
+
+        .btn-modal-close:hover {
+          color: white;
+          background: rgba(255, 255, 255, 0.05);
         }
 
         /* SMART SUMMARY */
@@ -796,6 +945,7 @@
               </div>
             </div>
             <div class="header-actions">
+              <button class="btn-key" id="btn-open-key-modal">🔑 Clé CARTO</button>
               <button class="btn-refresh" id="btn-refresh">🔄 Rafraîchir</button>
             </div>
           </div>
@@ -819,10 +969,11 @@
                 <span id="map-layer-title">Radar des Précipitations en Direct</span>
               </div>
               <div class="map-controls-group">
-                <div class="basemap-switcher">
+                <div class="basemap-switcher" id="basemap-switcher">
                   <button class="basemap-btn active" data-basemap="dark" title="Fond Sombre Esri (100% gratuit, sans clé API)">🌙 Sombre</button>
                   <button class="basemap-btn" data-basemap="osm" title="Plan OpenStreetMap (100% gratuit, sans clé API)">🗺️ Rues</button>
                   <button class="basemap-btn" data-basemap="satellite" title="Satellite Esri (100% gratuit, sans clé API)">🛰️ Satellite</button>
+                  <button class="basemap-btn" id="btn-basemap-carto" data-basemap="carto" style="display:${this._cartoApiKey ? 'flex' : 'none'};" title="Fond CartoDB Dark Matter (Clé active)">🏙️ CartoDB</button>
                 </div>
                 <div class="layer-switcher">
                   <button class="layer-btn active" data-layer="rain">🌧️ Pluie</button>
@@ -967,6 +1118,26 @@
               </div>
             </div>
           </div>
+
+          <!-- MODAL CLÉ API CARTO -->
+          <div class="modal-backdrop" id="modal-carto-key">
+            <div class="modal-card">
+              <h3>🔑 Clé API CARTO (Optionnelle)</h3>
+              <p>
+                Renseignez votre clé API gratuite obtenue sur <a href="https://carto.com/basemaps/apikey" target="_blank" rel="noopener">carto.com/basemaps/apikey</a> pour activer le fond officiel <b>CartoDB Dark Matter</b> sans filigrane.<br><br>
+                <i>Note : Si vous n'avez pas de clé, le fond <b>🌙 Sombre (Esri)</b> est déjà actif par défaut, 100% gratuit et sans aucun filigrane !</i>
+              </p>
+              <div class="key-input-group">
+                <input type="text" class="key-input" id="carto-key-input" placeholder="Collez votre clé API CARTO..." value="${this._cartoApiKey || ''}" />
+                <button class="btn-modal-save" id="btn-save-carto-key">💾 Sauvegarder</button>
+                <button class="btn-modal-clear" id="btn-clear-carto-key">Effacer</button>
+              </div>
+              <div class="key-status-msg" id="carto-key-status"></div>
+              <div class="modal-footer">
+                <button class="btn-modal-close" id="btn-close-carto-modal">Fermer</button>
+              </div>
+            </div>
+          </div>
         </div>
       `;
       this.shadowRoot.appendChild(style);
@@ -1034,6 +1205,91 @@
       root.getElementById("btn-pause-watering")?.addEventListener("click", () => {
         if (this._hass) this._hass.callService("switch", "turn_off", {});
       });
+
+      // Carto API Key Modal events
+      const modal = root.getElementById("modal-carto-key");
+      const keyInput = root.getElementById("carto-key-input");
+      const keyStatus = root.getElementById("carto-key-status");
+
+      root.getElementById("btn-open-key-modal")?.addEventListener("click", () => {
+        if (keyInput) keyInput.value = this._cartoApiKey || "";
+        if (keyStatus) keyStatus.textContent = "";
+        modal?.classList.add("open");
+      });
+
+      root.getElementById("btn-close-carto-modal")?.addEventListener("click", () => {
+        modal?.classList.remove("open");
+      });
+
+      modal?.addEventListener("click", (e) => {
+        if (e.target === modal) modal.classList.remove("open");
+      });
+
+      root.getElementById("btn-save-carto-key")?.addEventListener("click", () => {
+        const val = (keyInput?.value || "").trim();
+        if (!val) {
+          if (keyStatus) {
+            keyStatus.style.color = "#f59e0b";
+            keyStatus.textContent = "Veuillez saisir une clé API valide ou cliquer sur Effacer.";
+          }
+          return;
+        }
+
+        this._cartoApiKey = val;
+        localStorage.setItem("open_meteo_carto_api_key", val);
+
+        if (this._map) {
+          if (this._baseLayers.carto) {
+            this._map.removeLayer(this._baseLayers.carto);
+          }
+          this._baseLayers.carto = L.tileLayer(
+            `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?api_key=${encodeURIComponent(val)}`,
+            {
+              attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; OpenStreetMap',
+              maxZoom: 19,
+              subdomains: "abcd",
+            }
+          );
+
+          const cartoBtn = root.getElementById("btn-basemap-carto");
+          if (cartoBtn) {
+            cartoBtn.style.display = "flex";
+            root.querySelectorAll(".basemap-btn").forEach((b) => b.classList.remove("active"));
+            cartoBtn.classList.add("active");
+          }
+          this._switchBasemap("carto");
+        }
+
+        if (keyStatus) {
+          keyStatus.style.color = "#22c55e";
+          keyStatus.textContent = "✅ Clé API CARTO sauvegardée et fond CartoDB activé !";
+        }
+      });
+
+      root.getElementById("btn-clear-carto-key")?.addEventListener("click", () => {
+        this._cartoApiKey = "";
+        localStorage.removeItem("open_meteo_carto_api_key");
+        if (keyInput) keyInput.value = "";
+
+        if (this._map && this._baseLayers.carto) {
+          if (this._activeBasemap === "carto") {
+            this._switchBasemap("dark");
+            const darkBtn = root.querySelector('.basemap-btn[data-basemap="dark"]');
+            root.querySelectorAll(".basemap-btn").forEach((b) => b.classList.remove("active"));
+            if (darkBtn) darkBtn.classList.add("active");
+          }
+          this._map.removeLayer(this._baseLayers.carto);
+          delete this._baseLayers.carto;
+        }
+
+        const cartoBtn = root.getElementById("btn-basemap-carto");
+        if (cartoBtn) cartoBtn.style.display = "none";
+
+        if (keyStatus) {
+          keyStatus.style.color = "#94a3b8";
+          keyStatus.textContent = "🗑️ Clé API retirée. Fond par défaut (Esri Sombre) réactivé.";
+        }
+      });
     }
 
     async _initMapAsync() {
@@ -1063,6 +1319,17 @@
           maxZoom: 18,
         }),
       };
+
+      if (this._cartoApiKey) {
+        this._baseLayers.carto = L.tileLayer(
+          `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?api_key=${encodeURIComponent(this._cartoApiKey)}`,
+          {
+            attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; OpenStreetMap',
+            maxZoom: 19,
+            subdomains: "abcd",
+          }
+        );
+      }
 
       this._activeBasemap = "dark";
       this._baseLayers.dark.addTo(this._map);
@@ -1511,5 +1778,5 @@
   }
 
   customElements.define("open-meteo-custom-panel", OpenMeteoCustomPanel);
-  console.info("Open-Meteo Custom: Panneau latéral tactile v1.4.1 enregistré.");
+  console.info("Open-Meteo Custom: Panneau latéral tactile v1.4.2 enregistré.");
 })();
