@@ -16,7 +16,7 @@ from homeassistant.components.weather import (
 )
 
 DOMAIN = "open_meteo_custom"
-VERSION = "1.4.0"
+VERSION = "1.4.1"
 MANUFACTURER = "Open-Meteo"
 ATTRIBUTION = "Données météo fournies par Open-Meteo & Base Adresse Nationale"
 
@@ -56,6 +56,7 @@ SENSOR_PRECIPITATION_SUM = "precipitation_sum"
 SENSOR_WIND_GUSTS_MAX = "wind_gusts_max"
 SENSOR_SNOWFALL_SUM = "snowfall_sum"
 SENSOR_APPARENT_TEMPERATURE = "apparent_temperature"
+SENSOR_TEMPERATURE = "temperature"
 
 # Pollen sensor keys
 SENSOR_POLLEN_GRASS = "grass_pollen"

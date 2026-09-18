@@ -138,6 +138,7 @@
     _findEntities() {
       const res = {
         weather: null,
+        temp: null,
         aqi_eu: null,
         aqi_level: null,
         pm25: null,
@@ -165,7 +166,15 @@
       if (!this._hass) return res;
 
       for (const [id, state] of Object.entries(this._hass.states)) {
-        if (id.startsWith("weather.open_meteo")) res.weather = state;
+        if (id.startsWith("weather.open_meteo")) {
+          // Prefer active/available weather entity
+          if (!res.weather || (res.weather.state === "unavailable" && state.state !== "unavailable")) {
+            res.weather = state;
+          }
+        }
+        else if (id.includes("temperature_actuelle") || (id.includes("temperature") && !id.includes("ressentie") && !id.includes("apparent"))) {
+          if (!res.temp || (res.temp.state === "unavailable" && state.state !== "unavailable")) res.temp = state;
+        }
         else if (id.includes("qualite_de_l_air_aqi_europe") || id.includes("aqi_eu")) res.aqi_eu = state;
         else if (id.includes("niveau_de_qualite_de_l_air") || id.includes("aqi_level")) res.aqi_level = state;
         else if (id.includes("particules_fines_pm2_5") || id.includes("pm2_5")) res.pm25 = state;
@@ -194,20 +203,42 @@
 
     _generateSmartSummary(entities) {
       const w = entities.weather;
-      if (!w) return "Données météorologiques en cours de synchronisation avec Open-Meteo...";
+      const rawTemp = w?.attributes?.temperature ?? entities.temp?.state ?? entities.apparent_temp?.state;
+      const temp = (rawTemp !== undefined && rawTemp !== null && rawTemp !== "unavailable" && rawTemp !== "unknown") ? rawTemp : "--";
 
-      const temp = w.attributes.temperature ?? "--";
-      const condition = w.state ?? "clair";
-      const rain = entities.precip?.state ? Number(entities.precip.state) : 0;
-      const wind = w.attributes.wind_speed ?? 0;
+      let condition = w?.state;
+      const conditionMap = {
+        "sunny": "ensoleillé",
+        "clear-night": "nuit claire",
+        "partlycloudy": "partiellement nuageux",
+        "cloudy": "couvert",
+        "rainy": "pluvieux",
+        "pouring": "fortes pluies",
+        "lightning": "orageux",
+        "lightning-rainy": "orages et averses",
+        "snowy": "chutes de neige",
+        "snowy-rainy": "pluie et neige mêlées",
+        "windy": "venteux",
+        "fog": "brumeux / brouillard",
+        "hail": "averses de grêle",
+        "exceptional": "conditions exceptionnelles",
+      };
+
+      let condText = condition ? conditionMap[condition] : null;
+      if (!condText) {
+        condText = (!condition || condition === "unavailable" || condition === "unknown") ? "variable" : condition;
+      }
+
+      const rain = entities.precip?.state && !isNaN(entities.precip.state) ? Number(entities.precip.state) : 0;
+      const wind = w?.attributes?.wind_speed ?? (entities.wind_gusts?.state && !isNaN(entities.wind_gusts.state) ? Number(entities.wind_gusts.state) : 0);
       const aqiLvl = entities.aqi_level?.state || "Bon";
       const uv = entities.uv_index?.state || "--";
 
       let summary = `Aujourd'hui à ${this._locationName} : température actuelle de ${temp}°C`;
-      if (entities.apparent_temp && entities.apparent_temp.state) {
+      if (entities.apparent_temp && entities.apparent_temp.state && entities.apparent_temp.state !== "unavailable") {
         summary += ` (ressenti ${entities.apparent_temp.state}°C)`;
       }
-      summary += `, temps ${condition}. `;
+      summary += `, temps ${condText}. `;
 
       if (rain > 0.5) {
         summary += `Cumul de pluie prévu : ${rain} mm. `;
@@ -372,6 +403,50 @@
           display: flex;
           align-items: center;
           gap: 8px;
+        }
+
+        .map-controls-group {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          flex-wrap: wrap;
+        }
+
+        /* BASEMAP SWITCHER (SANS CLÉ API) */
+        .basemap-switcher {
+          display: flex;
+          background: rgba(15, 23, 42, 0.9);
+          padding: 3px;
+          border-radius: 10px;
+          border: 1px solid rgba(255, 255, 255, 0.15);
+          gap: 3px;
+        }
+
+        .basemap-btn {
+          background: transparent;
+          border: none;
+          color: #94a3b8;
+          padding: 5px 11px;
+          border-radius: 7px;
+          font-size: 0.8rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          display: flex;
+          align-items: center;
+          gap: 4px;
+        }
+
+        .basemap-btn.active {
+          background: rgba(56, 189, 248, 0.25);
+          color: #38bdf8;
+          box-shadow: 0 0 8px rgba(56, 189, 248, 0.3);
+          border: 1px solid rgba(56, 189, 248, 0.4);
+        }
+
+        .basemap-btn:hover:not(.active) {
+          color: #f8fafc;
+          background: rgba(255, 255, 255, 0.05);
         }
 
         /* FLOATING LAYER SWITCHER */
@@ -743,12 +818,19 @@
                 <span>🗺️</span>
                 <span id="map-layer-title">Radar des Précipitations en Direct</span>
               </div>
-              <div class="layer-switcher">
-                <button class="layer-btn active" data-layer="rain">🌧️ Pluie</button>
-                <button class="layer-btn" data-layer="aqi">😷 Qualité Air</button>
-                <button class="layer-btn" data-layer="pollen">🌾 Pollens</button>
-                <button class="layer-btn" data-layer="temp">🌡️ Température</button>
-                <button class="layer-btn" data-layer="wind">💨 Vents</button>
+              <div class="map-controls-group">
+                <div class="basemap-switcher">
+                  <button class="basemap-btn active" data-basemap="dark" title="Fond Sombre Esri (100% gratuit, sans clé API)">🌙 Sombre</button>
+                  <button class="basemap-btn" data-basemap="osm" title="Plan OpenStreetMap (100% gratuit, sans clé API)">🗺️ Rues</button>
+                  <button class="basemap-btn" data-basemap="satellite" title="Satellite Esri (100% gratuit, sans clé API)">🛰️ Satellite</button>
+                </div>
+                <div class="layer-switcher">
+                  <button class="layer-btn active" data-layer="rain">🌧️ Pluie</button>
+                  <button class="layer-btn" data-layer="aqi">😷 Qualité Air</button>
+                  <button class="layer-btn" data-layer="pollen">🌾 Pollens</button>
+                  <button class="layer-btn" data-layer="temp">🌡️ Température</button>
+                  <button class="layer-btn" data-layer="wind">💨 Vents</button>
+                </div>
               </div>
             </div>
 
@@ -895,6 +977,15 @@
     _bindEvents() {
       const root = this.shadowRoot;
 
+      // Basemap switcher (Sans clé API, 100% gratuit)
+      root.querySelectorAll(".basemap-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          root.querySelectorAll(".basemap-btn").forEach((b) => b.classList.remove("active"));
+          btn.classList.add("active");
+          this._switchBasemap(btn.dataset.basemap);
+        });
+      });
+
       // Layer switcher
       root.querySelectorAll(".layer-btn").forEach((btn) => {
         btn.addEventListener("click", () => {
@@ -950,18 +1041,31 @@
       const mapEl = this.shadowRoot.getElementById("map");
       if (!mapEl || this._map) return;
 
-      // Dark Matter CartoDB tiles
+      // Initialize Leaflet map
       this._map = L.map(mapEl, {
         center: [this._lat, this._lon],
         zoom: 11,
         zoomControl: true,
       });
 
-      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-        attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; OpenStreetMap',
-        maxZoom: 19,
-        subdomains: "abcd",
-      }).addTo(this._map);
+      // Cartographies 100% gratuites, libres et sans aucune clé API (zéro filigrane)
+      this._baseLayers = {
+        dark: L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}", {
+          attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
+          maxZoom: 16,
+        }),
+        osm: L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+          maxZoom: 19,
+        }),
+        satellite: L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+          attribution: 'Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics',
+          maxZoom: 18,
+        }),
+      };
+
+      this._activeBasemap = "dark";
+      this._baseLayers.dark.addTo(this._map);
 
       // Home marker
       const homeIcon = L.divIcon({
@@ -1047,6 +1151,16 @@
           this._setRadarFrame(next);
         }, 800);
       }
+    }
+
+    _switchBasemap(name) {
+      if (!this._map || !this._baseLayers || !this._baseLayers[name] || this._activeBasemap === name) return;
+      if (this._baseLayers[this._activeBasemap]) {
+        this._map.removeLayer(this._baseLayers[this._activeBasemap]);
+      }
+      this._activeBasemap = name;
+      this._baseLayers[name].addTo(this._map);
+      this._baseLayers[name].bringToBack();
     }
 
     _switchLayer(layerName) {
@@ -1271,13 +1385,20 @@
 
       // Metrics
       const w = entities.weather;
-      if (w) {
-        root.getElementById("val-temp").textContent = `${w.attributes.temperature ?? '--'}°C`;
-        root.getElementById("val-humidity").textContent = `${w.attributes.humidity ?? '--'}%`;
-        root.getElementById("val-wind").textContent = `${w.attributes.wind_speed ?? '--'} km/h`;
-      }
-      if (entities.apparent_temp) {
+      const curTemp = (w?.attributes?.temperature !== undefined && w?.attributes?.temperature !== null)
+        ? w.attributes.temperature
+        : (entities.temp?.state && entities.temp.state !== "unavailable" ? entities.temp.state : (entities.apparent_temp?.state ?? '--'));
+      const curHum = w?.attributes?.humidity ?? '--';
+      const curWind = w?.attributes?.wind_speed ?? (entities.wind_gusts?.state ?? '--');
+
+      root.getElementById("val-temp").textContent = `${curTemp}°C`;
+      root.getElementById("val-humidity").textContent = `${curHum}%`;
+      root.getElementById("val-wind").textContent = `${curWind} km/h`;
+
+      if (entities.apparent_temp && entities.apparent_temp.state && entities.apparent_temp.state !== "unavailable") {
         root.getElementById("val-felt").textContent = `${entities.apparent_temp.state}°C`;
+      } else {
+        root.getElementById("val-felt").textContent = `${curTemp}°C`;
       }
       if (entities.uv_index) {
         root.getElementById("val-uv").textContent = `${entities.uv_index.state}`;
@@ -1390,5 +1511,5 @@
   }
 
   customElements.define("open-meteo-custom-panel", OpenMeteoCustomPanel);
-  console.info("Open-Meteo Custom: Panneau latéral tactile v1.4.0 enregistré.");
+  console.info("Open-Meteo Custom: Panneau latéral tactile v1.4.1 enregistré.");
 })();
