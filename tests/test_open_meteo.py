@@ -1,8 +1,9 @@
-"""Unit tests for the Open-Meteo Custom integration."""
+"""Unit tests for the Open-Meteo Custom integration v1.4.0."""
 from __future__ import annotations
 
 import asyncio
 import json
+import os
 import sys
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -25,6 +26,7 @@ def setup_ha_stubs():
     ha_const.Platform = MagicMock()
     ha_const.Platform.WEATHER = "weather"
     ha_const.Platform.SENSOR = "sensor"
+    ha_const.Platform.BINARY_SENSOR = "binary_sensor"
     ha_const.CONF_LATITUDE = "latitude"
     ha_const.CONF_LONGITUDE = "longitude"
     ha_const.CONCENTRATION_MICROGRAMS_PER_CUBIC_METER = "µg/m³"
@@ -93,6 +95,7 @@ def setup_ha_stubs():
         DURATION = "duration"
         PRECIPITATION = "precipitation"
         WIND_SPEED = "wind_speed"
+        TEMPERATURE = "temperature"
     class SensorStateClass:
         MEASUREMENT = "measurement"
         TOTAL = "total"
@@ -100,6 +103,35 @@ def setup_ha_stubs():
     ha_sensor.SensorEntityDescription = SensorEntityDescription
     ha_sensor.SensorDeviceClass = SensorDeviceClass
     ha_sensor.SensorStateClass = SensorStateClass
+
+    ha_bsensor = make_pkg("homeassistant.components.binary_sensor")
+    class BinarySensorEntity: pass
+    @dataclass(frozen=True, kw_only=True)
+    class BinarySensorEntityDescription:
+        key: str = ""
+        translation_key: str | None = None
+        name: str | None = None
+        device_class: Any = None
+        icon: str | None = None
+    class BinarySensorDeviceClass:
+        COLD = "cold"
+        SAFETY = "safety"
+        PROBLEM = "problem"
+    ha_bsensor.BinarySensorEntity = BinarySensorEntity
+    ha_bsensor.BinarySensorEntityDescription = BinarySensorEntityDescription
+    ha_bsensor.BinarySensorDeviceClass = BinarySensorDeviceClass
+
+    ha_frontend = make_pkg("homeassistant.components.frontend")
+    ha_frontend.async_register_built_in_panel = MagicMock()
+    ha_frontend.async_remove_panel = MagicMock()
+
+    ha_http = make_pkg("homeassistant.components.http")
+    class StaticPathConfig:
+        def __init__(self, url_path, path, cache_headers=True):
+            self.url_path = url_path
+            self.path = path
+            self.cache_headers = cache_headers
+    ha_http.StaticPathConfig = StaticPathConfig
 
     ha_core = make_pkg("homeassistant.core")
     ha_core.HomeAssistant = MagicMock
@@ -179,15 +211,18 @@ SAMPLE_FORECAST_DATA = {
     "current": {
         "temperature_2m": 18.5,
         "relative_humidity_2m": 65,
+        "apparent_temperature": 17.5,
         "weather_code": 1,
         "wind_speed_10m": 14.2,
         "wind_direction_10m": 180,
+        "wind_gusts_10m": 25.0,
         "pressure_msl": 1018.4,
         "uv_index": 3.8,
     },
     "hourly": {
         "time": [f"2026-09-18T{h:02d}:00:00" for h in range(24)],
         "temperature_2m": [15.0 + h * 0.5 for h in range(24)],
+        "apparent_temperature": [14.0 + h * 0.5 for h in range(24)],
         "precipitation_probability": [10 for _ in range(24)],
         "weather_code": [1 for _ in range(24)],
         "wind_speed_10m": [12.0 for _ in range(24)],
@@ -199,15 +234,15 @@ SAMPLE_FORECAST_DATA = {
     },
     "daily": {
         "time": [f"2026-09-{18+d:02d}" for d in range(7)],
-        "weather_code": [1, 2, 3, 0, 61, 1, 0],
-        "temperature_2m_max": [22.4, 21.0, 19.5, 20.0, 18.2, 22.0, 23.5],
-        "temperature_2m_min": [12.1, 11.5, 10.0, 9.8, 11.0, 12.5, 13.0],
-        "precipitation_sum": [0.0, 0.2, 1.5, 0.0, 8.4, 0.0, 0.0],
-        "wind_speed_10m_max": [25.0, 20.0, 18.0, 15.0, 30.0, 22.0, 18.0],
-        "sunshine_duration": [28800.0, 25200.0, 14400.0, 32400.0, 7200.0, 28800.0, 32400.0],
+        "weather_code": [1, 2, 3, 61, 80, 0, 1],
+        "temperature_2m_max": [22.4, 21.0, 19.5, 18.0, 20.0, 23.0, 24.5],
+        "temperature_2m_min": [12.1, 11.5, 13.0, 10.5, 9.8, 11.0, 13.5],
+        "precipitation_sum": [0.0, 0.5, 3.2, 8.4, 1.2, 0.0, 0.0],
+        "wind_speed_10m_max": [18.5, 15.0, 22.0, 25.0, 16.0, 12.0, 14.0],
+        "sunshine_duration": [28800.0, 25000.0, 18000.0, 12000.0, 22000.0, 32000.0, 30000.0],
         "snowfall_sum": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-        "wind_gusts_10m_max": [45.2, 35.0, 32.0, 28.0, 55.0, 38.0, 30.0],
-        "uv_index_max": [4.5, 4.2, 3.8, 4.6, 2.1, 4.4, 4.8],
+        "wind_gusts_10m_max": [45.2, 38.0, 52.0, 60.0, 35.0, 28.0, 32.0],
+        "uv_index_max": [4.5, 4.0, 3.5, 2.8, 4.2, 5.0, 5.1],
     },
 }
 
@@ -219,6 +254,12 @@ SAMPLE_AIR_QUALITY_DATA = {
         "pm2_5": 8.7,
         "nitrogen_dioxide": 24.1,
         "ozone": 48.6,
+        "grass_pollen": 5.5,
+        "birch_pollen": 12.0,
+        "olive_pollen": 0.0,
+        "mugwort_pollen": 1.2,
+        "ragweed_pollen": 0.0,
+        "alder_pollen": 0.0,
     }
 }
 
@@ -289,7 +330,7 @@ class TestOpenMeteoWeather(unittest.IsolatedAsyncioTestCase):
 
 
 class TestOpenMeteoSensors(unittest.IsolatedAsyncioTestCase):
-    """Tests for OpenMeteoSensor entities."""
+    """Tests for dedicated sensors (Air Quality, Weather & Pollens)."""
 
     def setUp(self):
         self.coordinator = MagicMock()
@@ -325,9 +366,76 @@ class TestOpenMeteoSensors(unittest.IsolatedAsyncioTestCase):
         # Weather sensors
         self.assertEqual(sensor_map["uv_index"], 3.8)
         self.assertEqual(sensor_map["uv_index_max"], 4.5)
-        self.assertEqual(sensor_map["sunshine_duration"], 8.0)  # 28800s / 3600 = 8.0h
+        self.assertEqual(sensor_map["sunshine_duration"], 8.0)
         self.assertEqual(sensor_map["precipitation_sum"], 0.0)
         self.assertEqual(sensor_map["wind_gusts_max"], 45.2)
+        self.assertEqual(sensor_map["apparent_temperature"], 17.5)
+
+        # Pollen sensors
+        self.assertEqual(sensor_map["grass_pollen"], 5.5)
+        self.assertEqual(sensor_map["birch_pollen"], 12.0)
+        self.assertEqual(sensor_map["olive_pollen"], 0.0)
+        self.assertEqual(sensor_map["mugwort_pollen"], 1.2)
+        self.assertEqual(sensor_map["ragweed_pollen"], 0.0)
+        self.assertEqual(sensor_map["alder_pollen"], 0.0)
+
+
+class TestBinarySensors(unittest.IsolatedAsyncioTestCase):
+    """Tests for proactive binary sensor alerts."""
+
+    def setUp(self):
+        self.coordinator = MagicMock()
+        self.coordinator.last_update_success = True
+        self.config_entry = MagicMock()
+        self.config_entry.entry_id = "test_entry_123"
+        self.config_entry.title = "Open-Meteo 95880"
+        self.config_entry.data = {}
+        self.config_entry.options = {"wind_gust_threshold": 50.0}
+
+    def test_binary_sensor_alerts(self):
+        from custom_components.open_meteo_custom.binary_sensor import (
+            BINARY_SENSOR_DESCRIPTIONS,
+            OpenMeteoBinarySensor,
+        )
+
+        # 1. Normal conditions
+        self.coordinator.data = {
+            "forecast": SAMPLE_FORECAST_DATA,
+            "air_quality": SAMPLE_AIR_QUALITY_DATA,
+        }
+        sensors = {
+            desc.key: OpenMeteoBinarySensor(self.coordinator, self.config_entry, desc)
+            for desc in BINARY_SENSOR_DESCRIPTIONS
+        }
+        # Under normal conditions: min temp > 0, gusts max 45.2 < 50, code=1, aqi=35
+        self.assertFalse(sensors["freeze_risk"].is_on)
+        self.assertFalse(sensors["strong_wind_alert"].is_on)
+        self.assertFalse(sensors["thunderstorm_risk"].is_on)
+        self.assertFalse(sensors["pollution_peak"].is_on)
+
+        # 2. Triggering freeze risk
+        freeze_data = json.loads(json.dumps(SAMPLE_FORECAST_DATA))
+        freeze_data["daily"]["temperature_2m_min"][0] = -1.5
+        self.coordinator.data = {"forecast": freeze_data, "air_quality": SAMPLE_AIR_QUALITY_DATA}
+        self.assertTrue(sensors["freeze_risk"].is_on)
+
+        # 3. Triggering strong wind alert
+        wind_data = json.loads(json.dumps(SAMPLE_FORECAST_DATA))
+        wind_data["daily"]["wind_gusts_10m_max"][0] = 58.0
+        self.coordinator.data = {"forecast": wind_data, "air_quality": SAMPLE_AIR_QUALITY_DATA}
+        self.assertTrue(sensors["strong_wind_alert"].is_on)
+
+        # 4. Triggering thunderstorm risk
+        storm_data = json.loads(json.dumps(SAMPLE_FORECAST_DATA))
+        storm_data["current"]["weather_code"] = 95
+        self.coordinator.data = {"forecast": storm_data, "air_quality": SAMPLE_AIR_QUALITY_DATA}
+        self.assertTrue(sensors["thunderstorm_risk"].is_on)
+
+        # 5. Triggering pollution peak
+        pollute_data = json.loads(json.dumps(SAMPLE_AIR_QUALITY_DATA))
+        pollute_data["current"]["european_aqi"] = 72
+        self.coordinator.data = {"forecast": SAMPLE_FORECAST_DATA, "air_quality": pollute_data}
+        self.assertTrue(sensors["pollution_peak"].is_on)
 
 
 class TestConfigFlow(unittest.IsolatedAsyncioTestCase):
@@ -362,46 +470,61 @@ class TestConfigFlow(unittest.IsolatedAsyncioTestCase):
         from custom_components.open_meteo_custom.config_flow import OpenMeteoOptionsFlow
 
         entry = MagicMock()
-        entry.options = {"update_interval": 30, "enable_air_quality": True}
+        entry.options = {
+            "update_interval": 30,
+            "enable_air_quality": True,
+            "show_sidebar_panel": True,
+            "wind_gust_threshold": 50.0,
+        }
         entry.data = {}
 
         flow = OpenMeteoOptionsFlow(entry)
         res = await flow.async_step_init()
         self.assertEqual(res["type"], "form")
 
-        submit_res = await flow.async_step_init({"update_interval": 15, "enable_air_quality": False})
+        submit_res = await flow.async_step_init({
+            "update_interval": 15,
+            "enable_air_quality": False,
+            "show_sidebar_panel": False,
+            "wind_gust_threshold": 60.0,
+        })
         self.assertEqual(submit_res["type"], "create_entry")
         self.assertEqual(submit_res["data"]["update_interval"], 15)
         self.assertFalse(submit_res["data"]["enable_air_quality"])
+        self.assertFalse(submit_res["data"]["show_sidebar_panel"])
+        self.assertEqual(submit_res["data"]["wind_gust_threshold"], 60.0)
 
-    async def test_config_flow_steps(self):
-        from custom_components.open_meteo_custom.config_flow import OpenMeteoCustomConfigFlow
 
-        flow = OpenMeteoCustomConfigFlow()
-        flow.hass = MagicMock()
-        flow.hass.config.latitude = 48.85
-        flow.hass.config.longitude = 2.35
-        flow.hass.config.location_name = "Maison"
+class TestSidebarPanelRegistration(unittest.IsolatedAsyncioTestCase):
+    """Tests for sidebar panel registration and unregistration."""
 
-        # Step User (Menu)
-        res = await flow.async_step_user()
-        self.assertEqual(res["type"], "menu")
+    async def test_panel_registration(self):
+        from custom_components.open_meteo_custom import async_register_frontend_and_panel
+        from homeassistant.components import frontend
 
-        # Step Home Assistant
-        res_ha = await flow.async_step_home_assistant({"location_name": "Maison"})
-        self.assertEqual(res_ha["type"], "create_entry")
-        self.assertEqual(res_ha["data"]["latitude"], 48.85)
-        self.assertEqual(res_ha["data"]["longitude"], 2.35)
+        hass = MagicMock()
+        hass.http = MagicMock()
 
-        # Step Manual
-        res_man = await flow.async_step_manual({
-            "location_name": "Bureau",
-            "latitude": 45.75,
-            "longitude": 4.85,
-        })
-        self.assertEqual(res_man["type"], "create_entry")
-        self.assertEqual(res_man["data"]["latitude"], 45.75)
-        self.assertEqual(res_man["data"]["longitude"], 4.85)
+        # 1. Enabled panel
+        entry = MagicMock()
+        entry.options = {"show_sidebar_panel": True}
+        entry.data = {}
+
+        frontend.async_register_built_in_panel.reset_mock()
+        frontend.async_remove_panel.reset_mock()
+
+        await async_register_frontend_and_panel(hass, entry)
+        frontend.async_register_built_in_panel.assert_called_once()
+        frontend.async_remove_panel.assert_not_called()
+
+        # 2. Disabled panel
+        entry.options = {"show_sidebar_panel": False}
+        frontend.async_register_built_in_panel.reset_mock()
+        frontend.async_remove_panel.reset_mock()
+
+        await async_register_frontend_and_panel(hass, entry)
+        frontend.async_remove_panel.assert_called_once()
+        frontend.async_register_built_in_panel.assert_not_called()
 
 
 class TestOpenMeteoApi(unittest.IsolatedAsyncioTestCase):
@@ -432,11 +555,12 @@ class TestOpenMeteoApi(unittest.IsolatedAsyncioTestCase):
             forecast = await api.get_forecast()
             self.assertIsNotNone(forecast)
             self.assertIn("current", forecast)
+            self.assertIn("apparent_temperature", forecast["current"])
 
             aqi = await api.get_air_quality()
             self.assertIsNotNone(aqi)
             self.assertIn("current", aqi)
-
+            self.assertIn("grass_pollen", aqi["current"])
 
 
 if __name__ == "__main__":

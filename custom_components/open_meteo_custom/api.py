@@ -27,11 +27,11 @@ class OpenMeteoApi:
     async def get_forecast(self) -> dict[str, Any] | None:
         """Récupère les données météo actuelles, horaires et quotidiennes de Open-Meteo."""
         current_vars = (
-            "temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,"
+            "temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,"
             "wind_direction_10m,pressure_msl,uv_index"
         )
         hourly_vars = (
-            "temperature_2m,precipitation_probability,weather_code,wind_speed_10m,"
+            "temperature_2m,apparent_temperature,precipitation_probability,weather_code,wind_speed_10m,"
             "relative_humidity_2m,rain,pressure_msl,wind_gusts_10m,uv_index"
         )
         daily_vars = (
@@ -76,13 +76,21 @@ class OpenMeteoApi:
         return None
 
     async def get_air_quality(self) -> dict[str, Any] | None:
-        """Récupère les données actuelles de qualité de l'air de Open-Meteo."""
-        current_aq_vars = "european_aqi,us_aqi,pm10,pm2_5,nitrogen_dioxide,ozone"
+        """Récupère les données actuelles de qualité de l'air et de pollens de Open-Meteo."""
+        current_aq_vars = (
+            "european_aqi,us_aqi,pm10,pm2_5,nitrogen_dioxide,ozone,"
+            "alder_pollen,birch_pollen,grass_pollen,mugwort_pollen,olive_pollen,ragweed_pollen"
+        )
+        hourly_aq_vars = (
+            "european_aqi,pm10,pm2_5,alder_pollen,birch_pollen,grass_pollen,mugwort_pollen,olive_pollen,ragweed_pollen"
+        )
 
         params = {
             "latitude": self._latitude,
             "longitude": self._longitude,
             "current": current_aq_vars,
+            "hourly": hourly_aq_vars,
+            "forecast_days": 1,
             "timezone": "auto",
         }
 

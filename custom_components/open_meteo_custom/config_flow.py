@@ -18,9 +18,13 @@ from .const import (
     CONF_ENABLE_AIR_QUALITY,
     CONF_LOCATION_NAME,
     CONF_POSTAL_CODE,
+    CONF_SHOW_SIDEBAR_PANEL,
     CONF_UPDATE_INTERVAL,
+    CONF_WIND_GUST_THRESHOLD,
     DEFAULT_ENABLE_AIR_QUALITY,
+    DEFAULT_SHOW_SIDEBAR_PANEL,
     DEFAULT_UPDATE_INTERVAL,
+    DEFAULT_WIND_GUST_THRESHOLD,
     DOMAIN,
 )
 
@@ -204,6 +208,14 @@ class OpenMeteoOptionsFlow(config_entries.OptionsFlow):
             CONF_ENABLE_AIR_QUALITY,
             self.config_entry.data.get(CONF_ENABLE_AIR_QUALITY, DEFAULT_ENABLE_AIR_QUALITY),
         )
+        curr_panel = self.config_entry.options.get(
+            CONF_SHOW_SIDEBAR_PANEL,
+            self.config_entry.data.get(CONF_SHOW_SIDEBAR_PANEL, DEFAULT_SHOW_SIDEBAR_PANEL),
+        )
+        curr_wind = self.config_entry.options.get(
+            CONF_WIND_GUST_THRESHOLD,
+            self.config_entry.data.get(CONF_WIND_GUST_THRESHOLD, DEFAULT_WIND_GUST_THRESHOLD),
+        )
 
         schema = vol.Schema({
             vol.Required(
@@ -218,6 +230,14 @@ class OpenMeteoOptionsFlow(config_entries.OptionsFlow):
                 CONF_ENABLE_AIR_QUALITY,
                 default=bool(curr_aqi),
             ): cv.boolean,
+            vol.Required(
+                CONF_SHOW_SIDEBAR_PANEL,
+                default=bool(curr_panel),
+            ): cv.boolean,
+            vol.Required(
+                CONF_WIND_GUST_THRESHOLD,
+                default=float(curr_wind),
+            ): vol.Coerce(float),
         })
 
         return self.async_show_form(step_id="init", data_schema=schema)

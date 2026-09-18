@@ -169,18 +169,24 @@ def main() -> None:
 
     zip_name = f"open_meteo_custom-v{new_ver}.zip"
     zip_path = f"/tmp/{zip_name}"
-    run_cmd(["rm", "-f", zip_path])
+    generic_zip_name = "open_meteo_custom.zip"
+    generic_zip_path = f"/tmp/{generic_zip_name}"
+
+    run_cmd(["rm", "-f", zip_path, generic_zip_path])
     run_cmd([
         "zip", "-r", zip_path, "custom_components", "hacs.json", "README.md",
         "-x", "*/__pycache__/*", "*.pyc",
     ])
-    print(f"Built archive: {zip_path}")
+    import shutil
+    shutil.copyfile(zip_path, generic_zip_path)
+    print(f"Built archives: {zip_path} and {generic_zip_path}")
 
     # Copy to Desktop as well
     desktop_zip = os.path.expanduser(f"~/Desktop/{zip_name}")
-    import shutil
+    desktop_generic_zip = os.path.expanduser(f"~/Desktop/{generic_zip_name}")
     shutil.copyfile(zip_path, desktop_zip)
-    print(f"Copied archive to Desktop: {desktop_zip}")
+    shutil.copyfile(zip_path, desktop_generic_zip)
+    print(f"Copied archives to Desktop: {desktop_zip} and {desktop_generic_zip}")
 
     run_cmd(["git", "add", "."])
     diff_exit = subprocess.call(["git", "diff", "--cached", "--quiet"], cwd=ROOT_DIR)
@@ -196,6 +202,7 @@ def main() -> None:
         upload_url = rel_data.get("upload_url")
         if upload_url:
             upload_release_asset(upload_url, zip_path, zip_name, token)
+            upload_release_asset(upload_url, generic_zip_path, generic_zip_name, token)
     except Exception as e:
         print(f"Warning: could not complete GitHub API release: {e}")
 
