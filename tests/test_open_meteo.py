@@ -489,12 +489,14 @@ class TestConfigFlow(unittest.IsolatedAsyncioTestCase):
             "enable_air_quality": False,
             "show_sidebar_panel": False,
             "wind_gust_threshold": 60.0,
+            "carto_api_key": "my_test_carto_key_123",
         })
         self.assertEqual(submit_res["type"], "create_entry")
         self.assertEqual(submit_res["data"]["update_interval"], 15)
         self.assertFalse(submit_res["data"]["enable_air_quality"])
         self.assertFalse(submit_res["data"]["show_sidebar_panel"])
         self.assertEqual(submit_res["data"]["wind_gust_threshold"], 60.0)
+        self.assertEqual(submit_res["data"]["carto_api_key"], "my_test_carto_key_123")
 
 
 class TestSidebarPanelRegistration(unittest.IsolatedAsyncioTestCase):

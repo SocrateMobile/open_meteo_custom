@@ -24,7 +24,13 @@ from homeassistant.helpers.update_coordinator import (
 )
 from homeassistant.util import dt as dt_util
 
-from .const import ATTRIBUTION, DOMAIN, MANUFACTURER, WMO_TO_HA_CONDITION
+from .const import (
+    ATTRIBUTION,
+    CONF_CARTO_API_KEY,
+    DOMAIN,
+    MANUFACTURER,
+    WMO_TO_HA_CONDITION,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -278,5 +284,12 @@ class OpenMeteoWeather(CoordinatorEntity[DataUpdateCoordinator[dict[str, Any]]],
                 attributes["today_snowfall_sum"] = snow[0]
             if uv_max and len(uv_max) > 0:
                 attributes["today_uv_index_max"] = uv_max[0]
+
+        carto_key = self.config_entry.options.get(
+            CONF_CARTO_API_KEY,
+            self.config_entry.data.get(CONF_CARTO_API_KEY),
+        )
+        if carto_key and isinstance(carto_key, str):
+            attributes["carto_api_key"] = carto_key
 
         return attributes
