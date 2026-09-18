@@ -11,6 +11,8 @@ from homeassistant.components.weather import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
+    CONF_LATITUDE,
+    CONF_LONGITUDE,
     UnitOfPressure,
     UnitOfSpeed,
     UnitOfTemperature,
@@ -27,6 +29,8 @@ from homeassistant.util import dt as dt_util
 from .const import (
     ATTRIBUTION,
     CONF_CARTO_API_KEY,
+    CONF_LOCATION_NAME,
+    CONF_POSTAL_CODE,
     DOMAIN,
     MANUFACTURER,
     WMO_TO_HA_CONDITION,
@@ -291,5 +295,21 @@ class OpenMeteoWeather(CoordinatorEntity[DataUpdateCoordinator[dict[str, Any]]],
         )
         if carto_key and isinstance(carto_key, str):
             attributes["carto_api_key"] = carto_key
+
+        # 3. Coordonnées géographiques et code postal
+        lat = self.config_entry.data.get(CONF_LATITUDE)
+        lon = self.config_entry.data.get(CONF_LONGITUDE)
+        if lat is not None:
+            attributes["latitude"] = float(lat)
+        if lon is not None:
+            attributes["longitude"] = float(lon)
+
+        postal = self.config_entry.data.get(CONF_POSTAL_CODE)
+        if postal:
+            attributes["postal_code"] = str(postal)
+
+        city = self.config_entry.data.get(CONF_LOCATION_NAME)
+        if city:
+            attributes["location_name"] = str(city)
 
         return attributes

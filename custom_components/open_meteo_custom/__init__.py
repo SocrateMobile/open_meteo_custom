@@ -22,6 +22,8 @@ from .api import OpenMeteoApi
 from .const import (
     CONF_CARTO_API_KEY,
     CONF_ENABLE_AIR_QUALITY,
+    CONF_LOCATION_NAME,
+    CONF_POSTAL_CODE,
     CONF_SHOW_SIDEBAR_PANEL,
     CONF_UPDATE_INTERVAL,
     DEFAULT_ENABLE_AIR_QUALITY,
@@ -78,6 +80,10 @@ async def async_register_frontend_and_panel(hass: HomeAssistant, entry: ConfigEn
                         "name": PANEL_NAME,
                         "module_url": module_url,
                     },
+                    "latitude": float(entry.data.get(CONF_LATITUDE, 0.0)),
+                    "longitude": float(entry.data.get(CONF_LONGITUDE, 0.0)),
+                    "postal_code": str(entry.data.get(CONF_POSTAL_CODE, "")),
+                    "location_name": str(entry.data.get(CONF_LOCATION_NAME, "")),
                     "carto_api_key": entry.options.get(
                         CONF_CARTO_API_KEY,
                         entry.data.get(CONF_CARTO_API_KEY, ""),

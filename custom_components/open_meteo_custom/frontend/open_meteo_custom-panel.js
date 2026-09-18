@@ -1,5 +1,5 @@
 /**
- * Open-Meteo Custom — Panneau Latéral Interactif & Carte Multi-Couches (v1.4.7)
+ * Open-Meteo Custom — Panneau Latéral Interactif & Carte Multi-Couches (v1.4.8)
  * 
  * Fonctionnalités :
  * 1. Carte interactive Leaflet intégrée 100% locale avec zoom / dézoom / recentrage.
@@ -98,10 +98,11 @@
       this._playTimer = null;
       this._resizeObserver = null;
       this._windowResizeHandler = null;
-      this._lat = 48.8566;
-      this._lon = 2.3522;
-      this._locationName = "Enghien-les-Bains";
+      this._lat = 48.971047;
+      this._lon = 2.305251;
+      this._locationName = "Enghien-les-Bains (95880)";
       this._cartoApiKey = localStorage.getItem("open_meteo_carto_api_key") || "";
+      this._geocodingInProgress = false;
     }
 
     disconnectedCallback() {
@@ -131,17 +132,102 @@
       }
     }
 
+    _cleanLocationName() {
+      let name = (this._locationName || "").trim();
+      name = name.replace(/^Open-Meteo\s*[•\-–]?\s*/i, "").trim();
+      const m = name.match(/^\s*\(([^()]+)\)\s*$/);
+      if (m) return m[1].trim();
+      return name || "Enghien-les-Bains (95880)";
+    }
+
+    _updateLocationUI() {
+      const root = this.shadowRoot;
+      if (!root) return;
+      const cleanName = this._cleanLocationName();
+      const locSpan = root.getElementById("loc-name");
+      if (locSpan) locSpan.textContent = cleanName;
+      const btnLoc = root.getElementById("btn-locate-home");
+      if (btnLoc) {
+        btnLoc.textContent = `🎯 Centrer (${cleanName})`;
+        btnLoc.title = `Recentrer et zoomer sur ${cleanName}`;
+      }
+    }
+
+    _updateCoordinates(lat, lon, locationName = null) {
+      if (!lat || !lon) return;
+      this._lat = Number(lat);
+      this._lon = Number(lon);
+      if (locationName) {
+        this._locationName = locationName;
+      }
+      this._updateLocationUI();
+
+      if (this._map) {
+        if (this._homeMarker) {
+          this._homeMarker.setLatLng([this._lat, this._lon]);
+          this._homeMarker.setPopupContent(`<b>📍 ${this._cleanLocationName()}</b><br>Point de mesure Open-Meteo`);
+        }
+        this._map.panTo([this._lat, this._lon]);
+        if (this._activeLayer && this._activeLayer !== "rain") {
+          this._switchLayer(this._activeLayer);
+        }
+      }
+    }
+
+    async _geocodePostalCode(postalCode) {
+      if (!postalCode || this._geocodingInProgress) return;
+      this._geocodingInProgress = true;
+      try {
+        const resp = await fetch(`https://api-adresse.data.gouv.fr/search/?q=${encodeURIComponent(postalCode)}&type=municipality&limit=1`);
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const feat = data.features?.[0];
+        if (feat && feat.geometry && feat.geometry.coordinates?.length >= 2) {
+          const lon = Number(feat.geometry.coordinates[0]);
+          const lat = Number(feat.geometry.coordinates[1]);
+          const city = feat.properties?.city || feat.properties?.name || postalCode;
+          this._updateCoordinates(lat, lon, `${city} (${postalCode})`);
+        }
+      } catch (err) {
+        console.warn("Erreur géocodage BAN:", err);
+      } finally {
+        this._geocodingInProgress = false;
+      }
+    }
+
     _extractLocation() {
       if (!this._hass) return;
-      // Search for weather.open_meteo entity or home coordinates
+
+      // 1. Lire depuis this.panel.config si transmis
+      if (this.panel && this.panel.config) {
+        if (this.panel.config.latitude && Number(this.panel.config.latitude) !== 0) {
+          this._lat = Number(this.panel.config.latitude);
+        }
+        if (this.panel.config.longitude && Number(this.panel.config.longitude) !== 0) {
+          this._lon = Number(this.panel.config.longitude);
+        }
+        if (this.panel.config.location_name) {
+          this._locationName = this.panel.config.location_name;
+        }
+        if (this.panel.config.carto_api_key && !this._cartoApiKey) {
+          this._cartoApiKey = this.panel.config.carto_api_key;
+        }
+      }
+
+      let detectedPostalCode = null;
+
+      // 2. Parcourir les entités pour trouver weather.open_meteo...
       for (const eid in this._hass.states) {
         if (eid.startsWith("weather.open_meteo")) {
           const state = this._hass.states[eid];
-          if (state.attributes) {
+          if (state && state.attributes) {
             if (state.attributes.latitude) this._lat = Number(state.attributes.latitude);
             if (state.attributes.longitude) this._lon = Number(state.attributes.longitude);
-            if (state.attributes.friendly_name) {
-              this._locationName = state.attributes.friendly_name.replace(/^Open-Meteo\s*/i, "") || this._locationName;
+            if (state.attributes.postal_code) detectedPostalCode = String(state.attributes.postal_code);
+            if (state.attributes.location_name) {
+              this._locationName = state.attributes.location_name;
+            } else if (state.attributes.friendly_name) {
+              this._locationName = state.attributes.friendly_name.replace(/^Open-Meteo\s*[•\-–]?\s*/i, "").trim() || this._locationName;
             }
             if (state.attributes.carto_api_key && state.attributes.carto_api_key !== this._cartoApiKey) {
               this._cartoApiKey = state.attributes.carto_api_key;
@@ -151,18 +237,26 @@
           break;
         }
       }
-      if (this._hass.config) {
-        if (!this._lat && this._hass.config.latitude) this._lat = Number(this._hass.config.latitude);
-        if (!this._lon && this._hass.config.longitude) this._lon = Number(this._hass.config.longitude);
+
+      // 3. Détecter un code postal dans le nom si pas encore trouvé
+      if (!detectedPostalCode) {
+        const pcMatch = (this._locationName || "").match(/\b(\d{5})\b/);
+        if (pcMatch) detectedPostalCode = pcMatch[1];
       }
 
-      if (this.shadowRoot) {
-        const btnLoc = this.shadowRoot.getElementById("btn-locate-home");
-        if (btnLoc) {
-          btnLoc.textContent = `🎯 Centrer (${this._locationName})`;
-          btnLoc.title = `Recentrer et zoomer sur ${this._locationName}`;
+      // 4. Si nous avons détecté un code postal et que les coordonnées sont au centre de Paris (48.8566, 2.3522) :
+      const isDefaultParis = Math.abs(this._lat - 48.8566) < 0.005 && Math.abs(this._lon - 2.3522) < 0.005;
+      if (detectedPostalCode) {
+        if (isDefaultParis || (detectedPostalCode === "95880" && (Math.abs(this._lat - 48.971047) > 0.0001 || Math.abs(this._lon - 2.305251) > 0.0001))) {
+          if (detectedPostalCode === "95880") {
+            this._updateCoordinates(48.971047, 2.305251, "Enghien-les-Bains (95880)");
+          } else {
+            this._geocodePostalCode(detectedPostalCode);
+          }
         }
       }
+
+      this._updateLocationUI();
     }
 
     _findEntities() {
@@ -264,7 +358,7 @@
       const aqiLvl = entities.aqi_level?.state || "Bon";
       const uv = entities.uv_index?.state || "--";
 
-      let summary = `Aujourd'hui à ${this._locationName} : température actuelle de ${temp}°C`;
+      let summary = `Aujourd'hui à ${this._cleanLocationName()} : température actuelle de ${temp}°C`;
       if (entities.apparent_temp && entities.apparent_temp.state && entities.apparent_temp.state !== "unavailable") {
         summary += ` (ressenti ${entities.apparent_temp.state}°C)`;
       }
@@ -1196,7 +1290,7 @@
             <div class="header-left">
               <img class="header-logo" src="/open_meteo_custom_frontend/icon.png" alt="Logo" onerror="this.src='/local/icon.png';" />
               <div class="header-title">
-                <h1>Open-Meteo • <span id="loc-name">${this._locationName}</span></h1>
+                <h1>Open-Meteo • <span id="loc-name">${this._cleanLocationName()}</span></h1>
                 <p>Station Météorologique & Surveillance Environnementale Haute Résolution</p>
               </div>
             </div>
@@ -1225,7 +1319,7 @@
                 <span id="map-layer-title">Radar des Précipitations en Direct</span>
               </div>
               <div class="map-controls-group">
-                <button class="btn-locate" id="btn-locate-home" title="Recentrer et zoomer sur ${this._locationName}">🎯 Centrer (${this._locationName})</button>
+                <button class="btn-locate" id="btn-locate-home" title="Recentrer et zoomer sur ${this._cleanLocationName()}">🎯 Centrer (${this._cleanLocationName()})</button>
                 <div class="basemap-switcher" id="basemap-switcher">
                   <button class="basemap-btn active" data-basemap="satellite" title="Vue Satellite HD (Esri World Imagery)">🛰️ Satellite</button>
                   <button class="basemap-btn" data-basemap="hybrid" title="Satellite Hybride (Photos + Noms de Villes et Rues)">🌍 Hybride</button>
@@ -1669,7 +1763,7 @@
       });
       this._homeMarker = L.marker([this._lat, this._lon], { icon: homeIcon })
         .addTo(this._map)
-        .bindPopup(`<b>📍 ${this._locationName}</b><br>Point de mesure Open-Meteo`);
+        .bindPopup(`<b>📍 ${this._cleanLocationName()}</b><br>Point de mesure Open-Meteo`);
 
       this._colorOverlayGroup = L.layerGroup().addTo(this._map);
 
