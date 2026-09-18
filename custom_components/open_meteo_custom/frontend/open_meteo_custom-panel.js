@@ -1778,5 +1778,5 @@
   }
 
   customElements.define("open-meteo-custom-panel", OpenMeteoCustomPanel);
-  console.info("Open-Meteo Custom: Panneau latéral tactile v1.4.2 enregistré.");
+  console.info("Open-Meteo Custom: Panneau latéral tactile v1.4.3 enregistré.");
 })();

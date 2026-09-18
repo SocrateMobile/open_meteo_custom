@@ -140,6 +140,9 @@ def setup_ha_stubs():
     ha_entries = make_pkg("homeassistant.config_entries")
     class ConfigEntry: pass
     class OptionsFlow:
+        @property
+        def config_entry(self):
+            return getattr(self, "_config_entry", None)
         def async_create_entry(self, **kwargs): return {"type": "create_entry", **kwargs}
         def async_show_form(self, **kwargs): return {"type": "form", **kwargs}
     class ConfigFlow:

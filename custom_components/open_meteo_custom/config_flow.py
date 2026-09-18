@@ -191,9 +191,23 @@ class OpenMeteoCustomConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 class OpenMeteoOptionsFlow(config_entries.OptionsFlow):
     """Gestion des options pour Open-Meteo Custom."""
 
-    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
+    def __init__(self, config_entry: config_entries.ConfigEntry | None = None) -> None:
         """Initialise le flux d'options."""
-        self.config_entry = config_entry
+        if config_entry is not None:
+            self._config_entry = config_entry
+
+    @property
+    def _entry(self) -> config_entries.ConfigEntry:
+        """Retourne l'entrée de configuration de manière sûre sur toutes les versions de HA."""
+        if getattr(self, "_config_entry", None) is not None:
+            return self._config_entry
+        try:
+            return self.config_entry
+        except Exception:
+            pass
+        if hasattr(self, "hass") and self.hass and hasattr(self, "handler"):
+            return self.hass.config_entries.async_get_entry(self.handler)
+        return getattr(self, "_config_entry", None)
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -202,31 +216,48 @@ class OpenMeteoOptionsFlow(config_entries.OptionsFlow):
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
-        curr_interval = self.config_entry.options.get(
+        entry = self._entry
+        curr_interval = entry.options.get(
             CONF_UPDATE_INTERVAL,
-            self.config_entry.data.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL),
-        )
-        curr_aqi = self.config_entry.options.get(
+            entry.data.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL),
+        ) if entry else DEFAULT_UPDATE_INTERVAL
+
+        curr_aqi = entry.options.get(
             CONF_ENABLE_AIR_QUALITY,
-            self.config_entry.data.get(CONF_ENABLE_AIR_QUALITY, DEFAULT_ENABLE_AIR_QUALITY),
-        )
-        curr_panel = self.config_entry.options.get(
+            entry.data.get(CONF_ENABLE_AIR_QUALITY, DEFAULT_ENABLE_AIR_QUALITY),
+        ) if entry else DEFAULT_ENABLE_AIR_QUALITY
+
+        curr_panel = entry.options.get(
             CONF_SHOW_SIDEBAR_PANEL,
-            self.config_entry.data.get(CONF_SHOW_SIDEBAR_PANEL, DEFAULT_SHOW_SIDEBAR_PANEL),
-        )
-        curr_wind = self.config_entry.options.get(
+            entry.data.get(CONF_SHOW_SIDEBAR_PANEL, DEFAULT_SHOW_SIDEBAR_PANEL),
+        ) if entry else DEFAULT_SHOW_SIDEBAR_PANEL
+
+        curr_wind = entry.options.get(
             CONF_WIND_GUST_THRESHOLD,
-            self.config_entry.data.get(CONF_WIND_GUST_THRESHOLD, DEFAULT_WIND_GUST_THRESHOLD),
-        )
-        curr_carto = self.config_entry.options.get(
+            entry.data.get(CONF_WIND_GUST_THRESHOLD, DEFAULT_WIND_GUST_THRESHOLD),
+        ) if entry else DEFAULT_WIND_GUST_THRESHOLD
+
+        curr_carto = entry.options.get(
             CONF_CARTO_API_KEY,
-            self.config_entry.data.get(CONF_CARTO_API_KEY, DEFAULT_CARTO_API_KEY),
-        )
+            entry.data.get(CONF_CARTO_API_KEY, DEFAULT_CARTO_API_KEY),
+        ) if entry else DEFAULT_CARTO_API_KEY
+
+        try:
+            interval_val = int(curr_interval)
+            if interval_val not in (15, 30, 60):
+                interval_val = 30
+        except (ValueError, TypeError):
+            interval_val = 30
+
+        try:
+            wind_val = float(curr_wind)
+        except (ValueError, TypeError):
+            wind_val = DEFAULT_WIND_GUST_THRESHOLD
 
         schema = vol.Schema({
             vol.Required(
                 CONF_UPDATE_INTERVAL,
-                default=int(curr_interval),
+                default=interval_val,
             ): vol.In({
                 15: "15 minutes",
                 30: "30 minutes (recommandé)",
@@ -242,7 +273,7 @@ class OpenMeteoOptionsFlow(config_entries.OptionsFlow):
             ): cv.boolean,
             vol.Required(
                 CONF_WIND_GUST_THRESHOLD,
-                default=float(curr_wind),
+                default=wind_val,
             ): vol.Coerce(float),
             vol.Optional(
                 CONF_CARTO_API_KEY,
