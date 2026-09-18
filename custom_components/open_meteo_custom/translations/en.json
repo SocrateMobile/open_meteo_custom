@@ -3,30 +3,30 @@
     "step": {
       "user": {
         "title": "Open-Meteo Custom",
-        "description": "Choose a location method to fetch weather and air quality.",
+        "description": "Choose the location method to fetch weather, air quality and pollen forecasts.",
         "menu_options": {
-          "postal": "French Postal Code (BAN)",
-          "home_assistant": "Home Assistant Coordinates",
-          "manual": "Custom GPS Coordinates"
+          "postal": "Postal Code (France)",
+          "home_assistant": "Home Assistant coordinates",
+          "manual": "Custom GPS coordinates"
         }
       },
       "postal": {
-        "title": "French Postal Code",
-        "description": "Enter a French postal code. Coordinates will be automatically retrieved via the Base Adresse Nationale.",
+        "title": "Location by Postal Code",
+        "description": "Enter a French postal code. Coordinates will be geocoded automatically via Base Adresse Nationale.",
         "data": {
           "postal_code": "Postal Code"
         }
       },
       "home_assistant": {
-        "title": "Home Assistant Location",
-        "description": "Using your home GPS coordinates ({lat}, {lon}).",
+        "title": "Home Assistant Coordinates",
+        "description": "Use your configured home GPS coordinates ({lat}, {lon}).",
         "data": {
           "location_name": "Location Name"
         }
       },
       "manual": {
         "title": "Manual Coordinates",
-        "description": "Enter latitude and longitude coordinates directly.",
+        "description": "Enter direct latitude and longitude coordinates.",
         "data": {
           "location_name": "Location Name",
           "latitude": "Latitude",
@@ -35,7 +35,7 @@
       }
     },
     "error": {
-      "invalid_postal_code": "Postal code not found. Please verify your input.",
+      "invalid_postal_code": "Postal code not found. Please verify your entry.",
       "invalid_coordinates": "Invalid geographical coordinates."
     },
     "abort": {
@@ -46,29 +46,44 @@
     "step": {
       "init": {
         "title": "Open-Meteo Custom Options",
-        "description": "Configure update frequency and fetched data.",
+        "description": "Customize update interval, alerts and sidebar panel visibility.",
         "data": {
           "update_interval": "Update Interval",
-          "enable_air_quality": "Enable Air Quality (AQI, PM2.5, PM10, etc.)"
+          "enable_air_quality": "Enable Air Quality and Pollens",
+          "show_sidebar_panel": "Show interactive panel in sidebar",
+          "wind_gust_threshold": "Strong wind alert threshold (km/h)"
         }
       }
     }
   },
   "entity": {
     "sensor": {
-      "aqi_eu": { "name": "Air Quality (EU AQI)" },
-      "aqi_us": { "name": "Air Quality (US AQI)" },
+      "aqi_eu": { "name": "Air Quality (AQI Europe)" },
+      "aqi_us": { "name": "Air Quality (AQI US)" },
       "aqi_level": { "name": "Air Quality Level" },
-      "pm2_5": { "name": "PM2.5 Fine Particulate Matter" },
-      "pm10": { "name": "PM10 Particulate Matter" },
+      "pm2_5": { "name": "PM2.5 Particles" },
+      "pm10": { "name": "PM10 Particles" },
       "nitrogen_dioxide": { "name": "Nitrogen Dioxide (NO2)" },
       "ozone": { "name": "Ozone (O3)" },
       "uv_index": { "name": "Current UV Index" },
-      "uv_index_max": { "name": "Max UV Index Today" },
-      "sunshine_duration": { "name": "Sunshine Duration Today" },
+      "uv_index_max": { "name": "Max UV Index" },
+      "sunshine_duration": { "name": "Sunshine Duration" },
       "precipitation_sum": { "name": "Precipitation Today" },
-      "wind_gusts_max": { "name": "Max Wind Gusts Today" },
-      "snowfall_sum": { "name": "Snowfall Today" }
+      "wind_gusts_max": { "name": "Max Wind Gusts" },
+      "snowfall_sum": { "name": "Snowfall Today" },
+      "apparent_temperature": { "name": "Apparent Temperature" },
+      "grass_pollen": { "name": "Grass Pollen" },
+      "birch_pollen": { "name": "Birch Pollen" },
+      "olive_pollen": { "name": "Olive Pollen" },
+      "mugwort_pollen": { "name": "Mugwort Pollen" },
+      "ragweed_pollen": { "name": "Ragweed Pollen" },
+      "alder_pollen": { "name": "Alder Pollen" }
+    },
+    "binary_sensor": {
+      "freeze_risk": { "name": "Freeze Risk (24h)" },
+      "strong_wind_alert": { "name": "Strong Wind Alert" },
+      "thunderstorm_risk": { "name": "Thunderstorm / Hail Risk" },
+      "pollution_peak": { "name": "Pollution Peak" }
     }
   }
 }

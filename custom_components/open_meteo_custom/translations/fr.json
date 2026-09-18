@@ -46,10 +46,12 @@
     "step": {
       "init": {
         "title": "Options Open-Meteo Custom",
-        "description": "Personnalisez la fréquence de mise à jour et les données récupérées.",
+        "description": "Personnalisez la fréquence de mise à jour, les alertes et l'affichage du panneau.",
         "data": {
           "update_interval": "Intervalle de mise à jour",
-          "enable_air_quality": "Activer la qualité de l'air (AQI, PM2.5, PM10, etc.)"
+          "enable_air_quality": "Activer la qualité de l'air et les pollens",
+          "show_sidebar_panel": "Afficher le panneau interactif dans la barre latérale",
+          "wind_gust_threshold": "Seuil d'alerte de vent fort (km/h)"
         }
       }
     }
@@ -68,7 +70,20 @@
       "sunshine_duration": { "name": "Ensoleillement du jour" },
       "precipitation_sum": { "name": "Précipitations du jour" },
       "wind_gusts_max": { "name": "Rafales maximales" },
-      "snowfall_sum": { "name": "Chutes de neige du jour" }
+      "snowfall_sum": { "name": "Chutes de neige du jour" },
+      "apparent_temperature": { "name": "Température ressentie" },
+      "grass_pollen": { "name": "Pollen de graminées" },
+      "birch_pollen": { "name": "Pollen de bouleau" },
+      "olive_pollen": { "name": "Pollen d'olivier" },
+      "mugwort_pollen": { "name": "Pollen d'armoise" },
+      "ragweed_pollen": { "name": "Pollen d'ambroisie" },
+      "alder_pollen": { "name": "Pollen d'aulne" }
+    },
+    "binary_sensor": {
+      "freeze_risk": { "name": "Risque de gel (24h)" },
+      "strong_wind_alert": { "name": "Alerte vent fort" },
+      "thunderstorm_risk": { "name": "Risque d'orage / grêle" },
+      "pollution_peak": { "name": "Pic de pollution" }
     }
   }
 }

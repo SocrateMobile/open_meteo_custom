@@ -16,7 +16,7 @@ from homeassistant.components.weather import (
 )
 
 DOMAIN = "open_meteo_custom"
-VERSION = "1.3.1"
+VERSION = "1.4.0"
 MANUFACTURER = "Open-Meteo"
 ATTRIBUTION = "Données météo fournies par Open-Meteo & Base Adresse Nationale"
 
@@ -25,9 +25,21 @@ CONF_POSTAL_CODE = "postal_code"
 CONF_LOCATION_NAME = "location_name"
 CONF_UPDATE_INTERVAL = "update_interval"
 CONF_ENABLE_AIR_QUALITY = "enable_air_quality"
+CONF_SHOW_SIDEBAR_PANEL = "show_sidebar_panel"
+CONF_WIND_GUST_THRESHOLD = "wind_gust_threshold"
 
 DEFAULT_UPDATE_INTERVAL = 30  # minutes
 DEFAULT_ENABLE_AIR_QUALITY = True
+DEFAULT_SHOW_SIDEBAR_PANEL = True
+DEFAULT_WIND_GUST_THRESHOLD = 50.0  # km/h
+
+# Panel constants
+PANEL_URL_PATH = "open_meteo_custom"
+PANEL_NAME = "open-meteo-custom-panel"
+PANEL_TITLE = "Open-Meteo"
+PANEL_ICON = "mdi:weather-partly-cloudy"
+FRONTEND_URL_PATH = "/open_meteo_custom_frontend"
+FRONTEND_FILE_NAME = "open_meteo_custom-panel.js"
 
 # Sensor keys
 SENSOR_AQI_EU = "aqi_eu"
@@ -43,6 +55,21 @@ SENSOR_SUNSHINE_DURATION = "sunshine_duration"
 SENSOR_PRECIPITATION_SUM = "precipitation_sum"
 SENSOR_WIND_GUSTS_MAX = "wind_gusts_max"
 SENSOR_SNOWFALL_SUM = "snowfall_sum"
+SENSOR_APPARENT_TEMPERATURE = "apparent_temperature"
+
+# Pollen sensor keys
+SENSOR_POLLEN_GRASS = "grass_pollen"
+SENSOR_POLLEN_BIRCH = "birch_pollen"
+SENSOR_POLLEN_OLIVE = "olive_pollen"
+SENSOR_POLLEN_MUGWORT = "mugwort_pollen"
+SENSOR_POLLEN_RAGWEED = "ragweed_pollen"
+SENSOR_POLLEN_ALDER = "alder_pollen"
+
+# Binary sensor keys (Alerts)
+BINARY_SENSOR_FREEZE_RISK = "freeze_risk"
+BINARY_SENSOR_STRONG_WIND = "strong_wind_alert"
+BINARY_SENSOR_THUNDERSTORM = "thunderstorm_risk"
+BINARY_SENSOR_POLLUTION_PEAK = "pollution_peak"
 
 # Mappage des codes WMO (Open-Meteo) vers les conditions standards de Home Assistant
 WMO_TO_HA_CONDITION = {

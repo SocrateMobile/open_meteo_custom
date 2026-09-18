@@ -4,7 +4,14 @@ from __future__ import annotations
 import asyncio
 from datetime import timedelta
 import logging
+import os
 from typing import Any
+
+from homeassistant.components import frontend
+try:
+    from homeassistant.components.http import StaticPathConfig
+except ImportError:
+    StaticPathConfig = None
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_LATITUDE, CONF_LONGITUDE, Platform
@@ -14,15 +21,75 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from .api import OpenMeteoApi
 from .const import (
     CONF_ENABLE_AIR_QUALITY,
+    CONF_SHOW_SIDEBAR_PANEL,
     CONF_UPDATE_INTERVAL,
     DEFAULT_ENABLE_AIR_QUALITY,
+    DEFAULT_SHOW_SIDEBAR_PANEL,
     DEFAULT_UPDATE_INTERVAL,
     DOMAIN,
+    FRONTEND_FILE_NAME,
+    FRONTEND_URL_PATH,
+    PANEL_ICON,
+    PANEL_NAME,
+    PANEL_TITLE,
+    PANEL_URL_PATH,
+    VERSION,
 )
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS: list[Platform] = [Platform.WEATHER, Platform.SENSOR]
+PLATFORMS: list[Platform] = [Platform.WEATHER, Platform.SENSOR, Platform.BINARY_SENSOR]
+
+
+async def async_register_frontend_and_panel(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Enregistre le chemin statique et le panneau latéral dans Home Assistant."""
+    frontend_dir = os.path.join(os.path.dirname(__file__), "frontend")
+    if os.path.exists(frontend_dir):
+        if hasattr(hass.http, "async_register_static_paths") and StaticPathConfig is not None:
+            try:
+                await hass.http.async_register_static_paths(
+                    [StaticPathConfig(FRONTEND_URL_PATH, frontend_dir, cache_headers=False)]
+                )
+            except Exception as err:
+                _LOGGER.debug("Chemin statique déjà enregistré ou erreur: %s", err)
+        elif hasattr(hass.http, "register_static_path"):
+            try:
+                hass.http.register_static_path(FRONTEND_URL_PATH, frontend_dir, cache_headers=False)
+            except Exception as err:
+                _LOGGER.debug("Chemin statique déjà enregistré ou erreur: %s", err)
+
+    show_panel = entry.options.get(
+        CONF_SHOW_SIDEBAR_PANEL,
+        entry.data.get(CONF_SHOW_SIDEBAR_PANEL, DEFAULT_SHOW_SIDEBAR_PANEL),
+    )
+
+    if show_panel:
+        module_url = f"{FRONTEND_URL_PATH}/{FRONTEND_FILE_NAME}?v={VERSION}"
+        try:
+            frontend.async_register_built_in_panel(
+                hass,
+                component_name="custom",
+                sidebar_title=PANEL_TITLE,
+                sidebar_icon=PANEL_ICON,
+                frontend_url_path=PANEL_URL_PATH,
+                config={
+                    "_panel_custom": {
+                        "name": PANEL_NAME,
+                        "module_url": module_url,
+                    }
+                },
+                require_admin=False,
+                update=True,
+            )
+            _LOGGER.info("Open-Meteo: Panneau latéral activé et enregistré avec succès.")
+        except Exception as err:
+            _LOGGER.debug("Panneau latéral Open-Meteo déjà enregistré: %s", err)
+    else:
+        try:
+            frontend.async_remove_panel(hass, PANEL_URL_PATH)
+            _LOGGER.info("Open-Meteo: Panneau latéral masqué selon les options.")
+        except Exception as err:
+            _LOGGER.debug("Impossible de retirer le panneau latéral Open-Meteo: %s", err)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -90,6 +157,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
+    # Enregistrer le panneau latéral
+    await async_register_frontend_and_panel(hass, entry)
+
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
 
     return True
@@ -105,5 +175,10 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
         hass.data[DOMAIN].pop(entry.entry_id, None)
+        if not hass.data[DOMAIN]:
+            try:
+                frontend.async_remove_panel(hass, PANEL_URL_PATH)
+            except Exception:
+                pass
 
     return unload_ok
