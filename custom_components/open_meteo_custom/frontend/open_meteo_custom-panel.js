@@ -1,5 +1,5 @@
 /**
- * Open-Meteo Custom — Panneau Latéral Interactif & Carte Multi-Couches (v1.4.4)
+ * Open-Meteo Custom — Panneau Latéral Interactif & Carte Multi-Couches (v1.4.5)
  * 
  * Fonctionnalités :
  * 1. Carte interactive Leaflet intégrée 100% locale avec zoom / dézoom / recentrage.
@@ -143,7 +143,7 @@
             if (state.attributes.friendly_name) {
               this._locationName = state.attributes.friendly_name.replace(/^Open-Meteo\s*/i, "") || this._locationName;
             }
-            if (state.attributes.carto_api_key && !this._cartoApiKey) {
+            if (state.attributes.carto_api_key && state.attributes.carto_api_key !== this._cartoApiKey) {
               this._cartoApiKey = state.attributes.carto_api_key;
               localStorage.setItem("open_meteo_carto_api_key", this._cartoApiKey);
             }
@@ -1437,7 +1437,7 @@
         this._cartoApiKey = val;
         localStorage.setItem("open_meteo_carto_api_key", val);
 
-        const cartoUrl = `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?api_key=${encodeURIComponent(val)}`;
+        const cartoUrl = `https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png?key=${encodeURIComponent(val)}&api_key=${encodeURIComponent(val)}`;
 
         if (this._map && this._baseLayers) {
           this._baseLayers.dark = L.tileLayer(cartoUrl, {
@@ -1474,7 +1474,7 @@
         localStorage.removeItem("open_meteo_carto_api_key");
         if (keyInput) keyInput.value = "";
 
-        const publicDarkUrl = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
+        const publicDarkUrl = "https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png";
 
         if (this._map && this._baseLayers) {
           this._baseLayers.dark = L.tileLayer(publicDarkUrl, {
@@ -1522,8 +1522,8 @@
 
       const getDarkUrl = (key) =>
         key
-          ? `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?api_key=${encodeURIComponent(key)}`
-          : "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
+          ? `https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png?key=${encodeURIComponent(key)}&api_key=${encodeURIComponent(key)}`
+          : "https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png";
 
       // Cartographies fluides, multi-niveaux de zoom (0 à 19 sans coupure)
       this._baseLayers = {
