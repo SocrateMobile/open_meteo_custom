@@ -1,0 +1,74 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Open-Meteo Custom",
+        "description": "Choose a location method to fetch weather and air quality.",
+        "menu_options": {
+          "postal": "French Postal Code (BAN)",
+          "home_assistant": "Home Assistant Coordinates",
+          "manual": "Custom GPS Coordinates"
+        }
+      },
+      "postal": {
+        "title": "French Postal Code",
+        "description": "Enter a French postal code. Coordinates will be automatically retrieved via the Base Adresse Nationale.",
+        "data": {
+          "postal_code": "Postal Code"
+        }
+      },
+      "home_assistant": {
+        "title": "Home Assistant Location",
+        "description": "Using your home GPS coordinates ({lat}, {lon}).",
+        "data": {
+          "location_name": "Location Name"
+        }
+      },
+      "manual": {
+        "title": "Manual Coordinates",
+        "description": "Enter latitude and longitude coordinates directly.",
+        "data": {
+          "location_name": "Location Name",
+          "latitude": "Latitude",
+          "longitude": "Longitude"
+        }
+      }
+    },
+    "error": {
+      "invalid_postal_code": "Postal code not found. Please verify your input.",
+      "invalid_coordinates": "Invalid geographical coordinates."
+    },
+    "abort": {
+      "already_configured": "This location is already configured in Home Assistant."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Open-Meteo Custom Options",
+        "description": "Configure update frequency and fetched data.",
+        "data": {
+          "update_interval": "Update Interval",
+          "enable_air_quality": "Enable Air Quality (AQI, PM2.5, PM10, etc.)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "aqi_eu": { "name": "Air Quality (EU AQI)" },
+      "aqi_us": { "name": "Air Quality (US AQI)" },
+      "aqi_level": { "name": "Air Quality Level" },
+      "pm2_5": { "name": "PM2.5 Fine Particulate Matter" },
+      "pm10": { "name": "PM10 Particulate Matter" },
+      "nitrogen_dioxide": { "name": "Nitrogen Dioxide (NO2)" },
+      "ozone": { "name": "Ozone (O3)" },
+      "uv_index": { "name": "Current UV Index" },
+      "uv_index_max": { "name": "Max UV Index Today" },
+      "sunshine_duration": { "name": "Sunshine Duration Today" },
+      "precipitation_sum": { "name": "Precipitation Today" },
+      "wind_gusts_max": { "name": "Max Wind Gusts Today" },
+      "snowfall_sum": { "name": "Snowfall Today" }
+    }
+  }
+}

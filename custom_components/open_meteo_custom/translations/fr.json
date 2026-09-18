@@ -1,0 +1,74 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Open-Meteo Custom",
+        "description": "Choisissez la méthode de localisation pour récupérer la météo et la qualité de l'air.",
+        "menu_options": {
+          "postal": "Code Postal (France)",
+          "home_assistant": "Coordonnées de Home Assistant",
+          "manual": "Coordonnées GPS personnalisées"
+        }
+      },
+      "postal": {
+        "title": "Localisation par Code Postal",
+        "description": "Saisissez un code postal français. Les coordonnées seront automatiquement trouvées via la Base Adresse Nationale.",
+        "data": {
+          "postal_code": "Code Postal"
+        }
+      },
+      "home_assistant": {
+        "title": "Coordonnées Home Assistant",
+        "description": "Utilisation des coordonnées GPS de votre domicile ({lat}, {lon}).",
+        "data": {
+          "location_name": "Nom du lieu"
+        }
+      },
+      "manual": {
+        "title": "Coordonnées Manuelles",
+        "description": "Saisissez directement la latitude et la longitude souhaitées.",
+        "data": {
+          "location_name": "Nom du lieu",
+          "latitude": "Latitude",
+          "longitude": "Longitude"
+        }
+      }
+    },
+    "error": {
+      "invalid_postal_code": "Code postal introuvable ou non reconnu. Veuillez vérifier votre saisie.",
+      "invalid_coordinates": "Coordonnées géographiques invalides."
+    },
+    "abort": {
+      "already_configured": "Cette localisation est déjà configurée dans Home Assistant."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Options Open-Meteo Custom",
+        "description": "Personnalisez la fréquence de mise à jour et les données récupérées.",
+        "data": {
+          "update_interval": "Intervalle de mise à jour",
+          "enable_air_quality": "Activer la qualité de l'air (AQI, PM2.5, PM10, etc.)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "aqi_eu": { "name": "Qualité de l'air (AQI Europe)" },
+      "aqi_us": { "name": "Qualité de l'air (AQI US)" },
+      "aqi_level": { "name": "Niveau de qualité de l'air" },
+      "pm2_5": { "name": "Particules PM2.5" },
+      "pm10": { "name": "Particules PM10" },
+      "nitrogen_dioxide": { "name": "Dioxyde d'azote (NO2)" },
+      "ozone": { "name": "Ozone (O3)" },
+      "uv_index": { "name": "Indice UV actuel" },
+      "uv_index_max": { "name": "Indice UV maximal" },
+      "sunshine_duration": { "name": "Ensoleillement du jour" },
+      "precipitation_sum": { "name": "Précipitations du jour" },
+      "wind_gusts_max": { "name": "Rafales maximales" },
+      "snowfall_sum": { "name": "Chutes de neige du jour" }
+    }
+  }
+}
