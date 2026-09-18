@@ -3,7 +3,7 @@
   "name": "Open-Meteo Custom",
   "version": "1.3.1",
   "config_flow": true,
-  "documentation": "https://github.com/SocrateMobile/open_meteo_custom/blob/main/README.md",
+  "documentation": "https://github.com/SocrateMobile/open_meteo_custom",
   "issue_tracker": "https://github.com/SocrateMobile/open_meteo_custom/issues",
   "dependencies": [],
   "codeowners": [
