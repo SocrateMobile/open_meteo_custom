@@ -1,7 +1,7 @@
 {
   "domain": "open_meteo_custom",
   "name": "Open-Meteo Custom",
-  "version": "1.4.8",
+  "version": "1.4.9",
   "config_flow": true,
   "documentation": "https://github.com/SocrateMobile/open_meteo_custom",
   "issue_tracker": "https://github.com/SocrateMobile/open_meteo_custom/issues",
