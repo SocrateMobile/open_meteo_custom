@@ -1,5 +1,5 @@
 /**
- * Open-Meteo Custom — Panneau Latéral Interactif & Carte Multi-Couches (v1.4.8)
+ * Open-Meteo Custom — Panneau Latéral Interactif & Carte Multi-Couches (v1.4.9)
  * 
  * Fonctionnalités :
  * 1. Carte interactive Leaflet intégrée 100% locale avec zoom / dézoom / recentrage.
@@ -103,7 +103,10 @@
       this._locationName = "Enghien-les-Bains (95880)";
       this._cartoApiKey = localStorage.getItem("open_meteo_carto_api_key") || "";
       this._geocodingInProgress = false;
+      this._regionalWeatherCache = null;
+      this._regionalWeatherCacheTime = 0;
     }
+
 
     disconnectedCallback() {
       if (this._resizeObserver) {
@@ -802,7 +805,102 @@
           background: rgba(255, 255, 255, 0.05);
         }
 
+        /* METEOROLOGICAL STATIONS & DYNAMIC BADGES */
+        .meteo-marker-div {
+          background: transparent !important;
+          border: none !important;
+        }
+
+        .meteo-badge {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 4px;
+          padding: 3px 8px;
+          border-radius: 14px;
+          font-family: inherit;
+          font-size: 0.8rem;
+          font-weight: 700;
+          color: #ffffff;
+          white-space: nowrap;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), 0 0 0 1.5px rgba(255, 255, 255, 0.4);
+          cursor: pointer;
+          transition: transform 0.15s ease, box-shadow 0.15s ease;
+          user-select: none;
+          backdrop-filter: blur(4px);
+          -webkit-backdrop-filter: blur(4px);
+        }
+
+        .meteo-badge:hover {
+          transform: scale(1.15);
+          box-shadow: 0 6px 18px rgba(0, 0, 0, 0.7), 0 0 0 2.5px #38bdf8;
+          z-index: 9999 !important;
+        }
+
+        .meteo-badge.home-station {
+          box-shadow: 0 0 0 3px #38bdf8, 0 0 18px rgba(56, 189, 248, 0.9);
+          animation: home-glow 2s infinite ease-in-out;
+          font-weight: 800;
+        }
+
+        @keyframes home-glow {
+          0% { box-shadow: 0 0 0 2px #38bdf8, 0 0 10px rgba(56, 189, 248, 0.6); }
+          50% { box-shadow: 0 0 0 4px #0284c7, 0 0 24px rgba(56, 189, 248, 1); }
+          100% { box-shadow: 0 0 0 2px #38bdf8, 0 0 10px rgba(56, 189, 248, 0.6); }
+        }
+
+        .badge-temp-val {
+          font-size: 0.85rem;
+          font-weight: 800;
+        }
+
+        .badge-st-name {
+          font-size: 0.7rem;
+          font-weight: 500;
+          opacity: 0.85;
+          margin-left: 2px;
+        }
+
+        /* WIND ARROWS */
+        .wind-arrow-badge {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          cursor: pointer;
+          transition: transform 0.15s ease;
+        }
+
+        .wind-arrow-badge:hover {
+          transform: scale(1.15);
+          z-index: 9999 !important;
+        }
+
+        .wind-arrow-badge.home-station .wind-speed-pill {
+          box-shadow: 0 0 0 2px #38bdf8, 0 0 12px rgba(56, 189, 248, 0.8);
+          font-weight: 800;
+        }
+
+        .wind-arrow-svg {
+          filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.6));
+          transition: transform 0.4s ease;
+        }
+
+        .wind-speed-pill {
+          background: rgba(15, 23, 42, 0.9);
+          border: 1.5px solid rgba(255, 255, 255, 0.3);
+          color: #f8fafc;
+          padding: 2px 6px;
+          border-radius: 10px;
+          font-size: 0.72rem;
+          font-weight: 700;
+          margin-top: 2px;
+          white-space: nowrap;
+          box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5);
+          backdrop-filter: blur(4px);
+        }
+
         .map-container {
+
           width: 100%;
           height: 520px;
           border-radius: 16px;
@@ -1521,6 +1619,11 @@
 
       // Refresh button
       root.getElementById("btn-refresh")?.addEventListener("click", () => {
+        this._regionalWeatherCache = null;
+        this._regionalWeatherCacheTime = 0;
+        if (this._activeLayer && this._activeLayer !== "rain") {
+          this._switchLayer(this._activeLayer);
+        }
         if (this._hass) {
           const entities = this._findEntities();
           if (entities.weather) {
@@ -1530,6 +1633,7 @@
           }
         }
       });
+
 
       // Play/Pause button
       root.getElementById("radar-play-btn")?.addEventListener("click", () => {
@@ -1784,6 +1888,14 @@
       };
       window.addEventListener("resize", this._windowResizeHandler);
 
+      // Re-render layer on zoom change for adaptive radius
+      this._map.on("zoomend", () => {
+        if (this._activeLayer && this._activeLayer !== "rain") {
+          this._switchLayer(this._activeLayer);
+        }
+      });
+
+
       // Fetch RainViewer radar metadata
       this._fetchRadarMaps();
       this._updateLegend("rain");
@@ -1890,7 +2002,7 @@
       }, 50);
     }
 
-    _switchLayer(layerName) {
+    async _switchLayer(layerName) {
       this._activeLayer = layerName;
       const root = this.shadowRoot;
       const radarControls = root.getElementById("radar-controls");
@@ -1917,17 +2029,17 @@
           this._setRadarFrame(this._currentFrameIndex);
         }
       } else if (layerName === "aqi") {
-        if (layerTitle) layerTitle.textContent = "😷 Zones de Qualité de l'Air (AQI Européen)";
-        this._drawAqiZones(entities);
+        if (layerTitle) layerTitle.textContent = "😷 Qualité de l'Air (AQI Européen & Polluants)";
+        await this._drawAqiZones(entities);
       } else if (layerName === "pollen") {
-        if (layerTitle) layerTitle.textContent = "🌾 Zones d'Alerte Pollens & Risque Allergique";
-        this._drawPollenZones(entities);
+        if (layerTitle) layerTitle.textContent = "🌾 Risque Allergique & Zones Pollens";
+        await this._drawPollenZones(entities);
       } else if (layerName === "temp") {
-        if (layerTitle) layerTitle.textContent = "🌡️ Zones Isothermes & Température Ressentie";
-        this._drawTempZones(entities);
+        if (layerTitle) layerTitle.textContent = "🌡️ Champ Thermique & Isothermes Régionales";
+        await this._drawTempZones(entities);
       } else if (layerName === "wind") {
-        if (layerTitle) layerTitle.textContent = "💨 Zones de Vents & Rafales Maximales";
-        this._drawWindZones(entities);
+        if (layerTitle) layerTitle.textContent = "💨 Champ de Vents & Vecteurs de Flux";
+        await this._drawWindZones(entities);
       }
 
       this._updateLegend(layerName);
@@ -1936,103 +2048,464 @@
       }, 50);
     }
 
-    _drawAqiZones(entities) {
-      if (!this._map || !this._colorOverlayGroup) return;
-      const aqi = entities.aqi_eu ? Number(entities.aqi_eu.state) : 35;
+    _buildStationList() {
+      const home = {
+        name: this._cleanLocationName() || "Mon Domicile",
+        lat: this._lat,
+        lon: this._lon,
+        isHome: true,
+      };
 
-      let color = "#10b981"; // Bon (vert)
-      let label = "Bon";
-      if (aqi > 80) { color = "#a855f7"; label = "Très mauvais"; }
-      else if (aqi > 60) { color = "#ef4444"; label = "Mauvais"; }
-      else if (aqi > 40) { color = "#f97316"; label = "Dégradé"; }
-      else if (aqi > 20) { color = "#eab308"; label = "Moyen"; }
+      const defaultStations = [
+        // Île-de-France & Proche banlieue
+        { name: "Paris Centre", lat: 48.8566, lon: 2.3522 },
+        { name: "Roissy CDG", lat: 49.0097, lon: 2.5479 },
+        { name: "Versailles", lat: 48.8049, lon: 2.1204 },
+        { name: "Cergy-Pontoise", lat: 49.0369, lon: 2.0631 },
+        { name: "Meaux", lat: 48.9599, lon: 2.8883 },
+        { name: "Melun", lat: 48.5392, lon: 2.6587 },
+        { name: "Beauvais", lat: 49.4431, lon: 2.0833 },
+        { name: "Mantes-la-Jolie", lat: 48.9908, lon: 1.7172 },
+        // Nord & Nord-Ouest
+        { name: "Lille", lat: 50.6292, lon: 3.0573 },
+        { name: "Amiens", lat: 49.8941, lon: 2.2958 },
+        { name: "Rouen", lat: 49.4432, lon: 1.0999 },
+        { name: "Le Havre", lat: 49.4944, lon: 0.1079 },
+        { name: "Caen", lat: 49.1829, lon: -0.3707 },
+        { name: "Cherbourg", lat: 49.6337, lon: -1.6221 },
+        // Ouest & Bretagne
+        { name: "Rennes", lat: 48.1173, lon: -1.6778 },
+        { name: "Brest", lat: 48.3904, lon: -4.4861 },
+        { name: "Lorient", lat: 47.7483, lon: -3.3667 },
+        { name: "Nantes", lat: 47.2184, lon: -1.5536 },
+        { name: "Angers", lat: 47.4784, lon: -0.5632 },
+        { name: "Tours", lat: 47.3941, lon: 0.6848 },
+        { name: "Le Mans", lat: 48.0061, lon: 0.1996 },
+        // Centre & Grand Est
+        { name: "Orléans", lat: 47.9029, lon: 1.9039 },
+        { name: "Bourges", lat: 47.0810, lon: 2.3988 },
+        { name: "Reims", lat: 49.2583, lon: 4.0317 },
+        { name: "Nancy", lat: 48.6921, lon: 6.1844 },
+        { name: "Metz", lat: 49.1193, lon: 6.1757 },
+        { name: "Strasbourg", lat: 48.5734, lon: 7.7521 },
+        { name: "Mulhouse", lat: 47.7508, lon: 7.3359 },
+        { name: "Dijon", lat: 47.3220, lon: 5.0415 },
+        { name: "Besançon", lat: 47.2378, lon: 6.0241 },
+        // Auvergne-Rhône-Alpes
+        { name: "Lyon", lat: 45.7640, lon: 4.8357 },
+        { name: "Grenoble", lat: 45.1885, lon: 5.7245 },
+        { name: "Annecy", lat: 45.8992, lon: 6.1294 },
+        { name: "Saint-Étienne", lat: 45.4397, lon: 4.3872 },
+        { name: "Clermont-Ferrand", lat: 45.7772, lon: 3.0870 },
+        // Sud-Ouest
+        { name: "Bordeaux", lat: 44.8378, lon: -0.5792 },
+        { name: "Limoges", lat: 45.8336, lon: 1.2611 },
+        { name: "Périgueux", lat: 45.1839, lon: 0.7217 },
+        { name: "Toulouse", lat: 43.6047, lon: 1.4442 },
+        { name: "Pau", lat: 43.2951, lon: -0.3708 },
+        { name: "Biarritz", lat: 43.4832, lon: -1.5586 },
+        // Sud-Est & Méditerranée
+        { name: "Montpellier", lat: 43.6108, lon: 3.8767 },
+        { name: "Nîmes", lat: 43.8367, lon: 4.3601 },
+        { name: "Marseille", lat: 43.2965, lon: 5.3698 },
+        { name: "Toulon", lat: 43.1242, lon: 5.9280 },
+        { name: "Nice", lat: 43.7102, lon: 7.2620 },
+        { name: "Perpignan", lat: 42.6886, lon: 2.8948 },
+        { name: "Ajaccio", lat: 41.9192, lon: 8.7386 },
+        { name: "Bastia", lat: 42.7028, lon: 9.4503 },
+        // Voisins européens
+        { name: "Bruxelles", lat: 50.8503, lon: 4.3517 },
+        { name: "Genève", lat: 46.2044, lon: 6.1432 },
+        { name: "Londres", lat: 51.5074, lon: -0.1278 },
+      ];
 
-      // Concentric colored zones
-      const c1 = L.circle([this._lat, this._lon], {
-        radius: 12000,
-        color: color,
-        fillColor: color,
-        fillOpacity: 0.35,
-        weight: 2,
-      }).bindPopup(`<b>Zone Locale AQI : ${aqi} (${label})</b><br>PM2.5: ${entities.pm25?.state || '--'} µg/m³<br>PM10: ${entities.pm10?.state || '--'} µg/m³`);
+      // Éviter les doublons si le domicile est à moins de 8 km d'une station prédéfinie
+      const filtered = defaultStations.filter((st) => {
+        const dLat = Math.abs(st.lat - home.lat);
+        const dLon = Math.abs(st.lon - home.lon);
+        return !(dLat < 0.08 && dLon < 0.08);
+      });
 
-      const c2 = L.circle([this._lat, this._lon], {
-        radius: 35000,
-        color: color,
-        fillColor: color,
-        fillOpacity: 0.18,
-        weight: 1,
-        dashArray: "4, 6",
-      }).bindPopup(`<b>Bassin Régional AQI : ${aqi}</b>`);
-
-      this._colorOverlayGroup.addLayer(c1);
-      this._colorOverlayGroup.addLayer(c2);
+      return [home, ...filtered];
     }
 
-    _drawPollenZones(entities) {
-      if (!this._map || !this._colorOverlayGroup) return;
-      const grass = entities.pollen_grass ? Number(entities.pollen_grass.state) : 0;
-      const birch = entities.pollen_birch ? Number(entities.pollen_birch.state) : 0;
-      const maxPollen = Math.max(grass, birch);
-
-      let color = "#38bdf8"; // Nul
-      let risk = "Nul / Faible";
-      if (maxPollen > 50) { color = "#ef4444"; risk = "Très élevé"; }
-      else if (maxPollen > 20) { color = "#f97316"; risk = "Élevé"; }
-      else if (maxPollen > 5) { color = "#eab308"; risk = "Modéré"; }
-
-      const zone = L.circle([this._lat, this._lon], {
-        radius: 20000,
-        color: color,
-        fillColor: color,
-        fillOpacity: 0.3,
-        weight: 2,
-      }).bindPopup(`<b>Zone Pollens : Risque ${risk}</b><br>Graminées: ${grass} grains/m³<br>Bouleau: ${birch} grains/m³`);
-
-      this._colorOverlayGroup.addLayer(zone);
+    _getAdaptiveHaloRadius() {
+      if (!this._map) return 45000;
+      const z = this._map.getZoom();
+      if (z <= 5) return 72000;
+      if (z === 6) return 48000;
+      if (z === 7) return 32000;
+      if (z === 8) return 20000;
+      if (z === 9) return 13000;
+      return 8000;
     }
 
-    _drawTempZones(entities) {
-      if (!this._map || !this._colorOverlayGroup) return;
-      const temp = entities.weather?.attributes?.temperature ?? 18;
-      const felt = entities.apparent_temp ? Number(entities.apparent_temp.state) : temp;
-
-      let color = "#22c55e"; // Tempéré (10-20°C)
-      if (temp < 0) color = "#0284c7";
-      else if (temp < 10) color = "#38bdf8";
-      else if (temp > 28) color = "#dc2626";
-      else if (temp > 20) color = "#f59e0b";
-
-      const zone = L.circle([this._lat, this._lon], {
-        radius: 25000,
-        color: color,
-        fillColor: color,
-        fillOpacity: 0.28,
-        weight: 2,
-      }).bindPopup(`<b>Isotherme : ${temp}°C</b><br>Température ressentie : ${felt}°C`);
-
-      this._colorOverlayGroup.addLayer(zone);
+    _getWindCardinal(deg) {
+      const directions = [
+        "Nord (N)",
+        "Nord-Nord-Est (NNE)",
+        "Nord-Est (NE)",
+        "Est-Nord-Est (ENE)",
+        "Est (E)",
+        "Est-Sud-Est (ESE)",
+        "Sud-Est (SE)",
+        "Sud-Sud-Est (SSE)",
+        "Sud (S)",
+        "Sud-Sud-Ouest (SSO)",
+        "Sud-Ouest (SO)",
+        "Ouest-Sud-Ouest (OSO)",
+        "Ouest (O)",
+        "Ouest-Nord-Ouest (ONO)",
+        "Nord-Ouest (NO)",
+        "Nord-Nord-Ouest (NNO)",
+      ];
+      const idx = Math.round(deg / 22.5) % 16;
+      return directions[idx];
     }
 
-    _drawWindZones(entities) {
+    _updateHomeStationFromEntities(homeStation, entities) {
+      if (!homeStation) return;
+      if (entities.weather?.attributes?.temperature != null) {
+        homeStation.temp = Number(entities.weather.attributes.temperature);
+      }
+      if (entities.apparent_temp?.state && entities.apparent_temp.state !== "unavailable") {
+        homeStation.felt = Number(entities.apparent_temp.state);
+      }
+      if (entities.weather?.attributes?.humidity != null) {
+        homeStation.humidity = Number(entities.weather.attributes.humidity);
+      }
+      if (entities.weather?.attributes?.wind_speed != null) {
+        homeStation.windSpeed = Number(entities.weather.attributes.wind_speed);
+      }
+      if (entities.weather?.attributes?.wind_bearing != null) {
+        homeStation.windDir = Number(entities.weather.attributes.wind_bearing);
+      }
+      if (entities.wind_gusts?.state && entities.wind_gusts.state !== "unavailable") {
+        homeStation.windGusts = Number(entities.wind_gusts.state);
+      }
+      if (entities.aqi_eu?.state && entities.aqi_eu.state !== "unavailable") {
+        homeStation.aqi = Number(entities.aqi_eu.state);
+      }
+      if (entities.pm25?.state && entities.pm25.state !== "unavailable") {
+        homeStation.pm25 = Number(entities.pm25.state);
+      }
+      if (entities.pm10?.state && entities.pm10.state !== "unavailable") {
+        homeStation.pm10 = Number(entities.pm10.state);
+      }
+      if (entities.pollen_grass?.state && entities.pollen_grass.state !== "unavailable") {
+        homeStation.pollenGrass = Number(entities.pollen_grass.state);
+      }
+      if (entities.pollen_birch?.state && entities.pollen_birch.state !== "unavailable") {
+        homeStation.pollenBirch = Number(entities.pollen_birch.state);
+      }
+    }
+
+    async _getRegionalWeatherData(entities) {
+      const now = Date.now();
+      if (this._regionalWeatherCache && (now - this._regionalWeatherCacheTime < 600000)) {
+        this._updateHomeStationFromEntities(this._regionalWeatherCache[0], entities);
+        return this._regionalWeatherCache;
+      }
+
+      const stations = this._buildStationList();
+
+      try {
+        const lats = stations.map((s) => s.lat.toFixed(4)).join(",");
+        const lons = stations.map((s) => s.lon.toFixed(4)).join(",");
+
+        const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lons}&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,wind_direction_10m,wind_gusts_10m`;
+        const aqiUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lats}&longitude=${lons}&current=european_aqi,pm2_5,pm10,grass_pollen,birch_pollen,ragweed_pollen`;
+
+        const [wRes, aRes] = await Promise.all([
+          fetch(weatherUrl).then((r) => r.json()).catch(() => null),
+          fetch(aqiUrl).then((r) => r.json()).catch(() => null),
+        ]);
+
+        const wList = Array.isArray(wRes) ? wRes : (wRes ? [wRes] : []);
+        const aList = Array.isArray(aRes) ? aRes : (aRes ? [aRes] : []);
+
+        for (let i = 0; i < stations.length; i++) {
+          const w = (wList[i] && wList[i].current) ? wList[i].current : {};
+          const a = (aList[i] && aList[i].current) ? aList[i].current : {};
+
+          stations[i].temp = w.temperature_2m != null ? Number(w.temperature_2m) : null;
+          stations[i].felt = w.apparent_temperature != null ? Number(w.apparent_temperature) : stations[i].temp;
+          stations[i].humidity = w.relative_humidity_2m != null ? Number(w.relative_humidity_2m) : null;
+          stations[i].windSpeed = w.wind_speed_10m != null ? Number(w.wind_speed_10m) : null;
+          stations[i].windDir = w.wind_direction_10m != null ? Number(w.wind_direction_10m) : 0;
+          stations[i].windGusts = w.wind_gusts_10m != null ? Number(w.wind_gusts_10m) : stations[i].windSpeed;
+          stations[i].aqi = a.european_aqi != null ? Number(a.european_aqi) : null;
+          stations[i].pm25 = a.pm2_5 != null ? Number(a.pm2_5) : null;
+          stations[i].pm10 = a.pm10 != null ? Number(a.pm10) : null;
+          stations[i].pollenGrass = a.grass_pollen != null ? Number(a.grass_pollen) : 0;
+          stations[i].pollenBirch = a.birch_pollen != null ? Number(a.birch_pollen) : 0;
+          stations[i].pollenRagweed = a.ragweed_pollen != null ? Number(a.ragweed_pollen) : 0;
+        }
+
+        this._updateHomeStationFromEntities(stations[0], entities);
+        this._regionalWeatherCache = stations;
+        this._regionalWeatherCacheTime = now;
+        return stations;
+      } catch (err) {
+        console.warn("Open-Meteo: Erreur chargement stations régionales", err);
+        this._updateHomeStationFromEntities(stations[0], entities);
+        return [stations[0]];
+      }
+    }
+
+    async _drawTempZones(entities) {
       if (!this._map || !this._colorOverlayGroup) return;
-      const wind = entities.weather?.attributes?.wind_speed ?? 15;
-      const gusts = entities.wind_gusts ? Number(entities.wind_gusts.state) : wind;
+      this._colorOverlayGroup.clearLayers();
 
-      let color = "#22c55e";
-      if (gusts > 65) color = "#dc2626";
-      else if (gusts > 45) color = "#f97316";
-      else if (gusts > 25) color = "#06b6d4";
+      const stations = await this._getRegionalWeatherData(entities);
+      const radius = this._getAdaptiveHaloRadius();
 
-      const zone = L.circle([this._lat, this._lon], {
-        radius: 18000,
-        color: color,
-        fillColor: color,
-        fillOpacity: 0.3,
-        weight: 2,
-      }).bindPopup(`<b>Vent : ${wind} km/h</b><br>Rafales maximales : ${gusts} km/h`);
+      stations.forEach((st) => {
+        if (st.temp === null) return;
+        const temp = st.temp;
+        const felt = st.felt ?? temp;
 
-      this._colorOverlayGroup.addLayer(zone);
+        let color = "#22c55e"; // 16-22°C doux
+        if (temp < 0) color = "#0284c7"; // <0°C glacier
+        else if (temp < 8) color = "#38bdf8"; // 0-8°C froid
+        else if (temp < 16) color = "#10b981"; // 8-16°C frais
+        else if (temp < 22) color = "#22c55e"; // 16-22°C doux
+        else if (temp < 27) color = "#f59e0b"; // 22-27°C tiède
+        else if (temp < 33) color = "#f97316"; // 27-33°C chaud
+        else color = "#dc2626"; // >33°C très chaud
+
+        // Halo de rayonnement thermique
+        const halo = L.circle([st.lat, st.lon], {
+          radius: radius,
+          color: color,
+          fillColor: color,
+          fillOpacity: st.isHome ? 0.38 : 0.26,
+          weight: st.isHome ? 2.5 : 1,
+          dashArray: st.isHome ? undefined : "3, 6",
+        });
+
+        // Badge thermographique
+        const badgeIcon = L.divIcon({
+          className: "meteo-marker-div",
+          html: `
+            <div class="meteo-badge temp-badge ${st.isHome ? 'home-station' : ''}" style="background:${color};" title="${st.name} : ${temp.toFixed(1)}°C">
+              ${st.isHome ? '<span class="badge-home-icon">🏠</span>' : ''}
+              <span class="badge-temp-val">${Math.round(temp)}°</span>
+              <span class="badge-st-name">${st.name}</span>
+            </div>
+          `,
+          iconSize: [85, 28],
+          iconAnchor: [42, 14],
+        });
+
+        const homeDiff = (stations[0].temp !== null && !st.isHome)
+          ? (temp - stations[0].temp)
+          : 0;
+        const diffStr = !st.isHome
+          ? `<br><span style="color:#94a3b8; font-size:0.8rem;">Écart avec votre domicile : <b>${homeDiff > 0 ? '+' : ''}${homeDiff.toFixed(1)}°C</b></span>`
+          : `<br><span style="color:#38bdf8; font-weight:700;">📍 Votre station de référence</span>`;
+
+        const marker = L.marker([st.lat, st.lon], { icon: badgeIcon })
+          .bindPopup(`
+            <div style="font-family:sans-serif; min-width:180px;">
+              <b style="font-size:1rem; color:#f8fafc;">🌡️ ${st.name}</b>
+              <hr style="border:0; border-top:1px solid rgba(255,255,255,0.15); margin:6px 0;">
+              <div>Température réelle : <b style="color:${color}; font-size:1.1rem;">${temp.toFixed(1)}°C</b></div>
+              <div>Température ressentie : <b>${felt.toFixed(1)}°C</b></div>
+              ${st.humidity ? `<div>Humidité relative : <b>${st.humidity}%</b></div>` : ''}
+              ${diffStr}
+            </div>
+          `);
+
+        this._colorOverlayGroup.addLayer(halo);
+        this._colorOverlayGroup.addLayer(marker);
+      });
+    }
+
+    async _drawWindZones(entities) {
+      if (!this._map || !this._colorOverlayGroup) return;
+      this._colorOverlayGroup.clearLayers();
+
+      const stations = await this._getRegionalWeatherData(entities);
+      const radius = this._getAdaptiveHaloRadius();
+
+      stations.forEach((st) => {
+        if (st.windSpeed === null) return;
+        const speed = st.windSpeed;
+        const gusts = st.windGusts ?? speed;
+        const dir = st.windDir ?? 0;
+        const arrowAngle = (dir + 180) % 360;
+
+        let color = "#06b6d4"; // <15 km/h calme
+        if (gusts > 65 || speed > 50) color = "#dc2626"; // Coup de vent
+        else if (gusts > 45 || speed > 35) color = "#f97316"; // Soutenu / Alerte stores
+        else if (gusts > 25 || speed > 20) color = "#22c55e"; // Brise
+
+        // Halo de circulation éolienne
+        const halo = L.circle([st.lat, st.lon], {
+          radius: radius * 0.85,
+          color: color,
+          fillColor: color,
+          fillOpacity: gusts > 45 ? 0.32 : 0.18,
+          weight: 1.5,
+        });
+
+        // Flèche aérodynamique SVG orientée avec pastille de vitesse
+        const arrowIcon = L.divIcon({
+          className: "meteo-marker-div",
+          html: `
+            <div class="wind-arrow-badge ${st.isHome ? 'home-station' : ''}" title="${st.name} : Vent ${Math.round(speed)} km/h (rafales ${Math.round(gusts)} km/h)">
+              <svg class="wind-arrow-svg" style="transform: rotate(${arrowAngle}deg);" width="26" height="26" viewBox="0 0 24 24">
+                <path d="M12 2L4 19L12 15L20 19L12 2Z" fill="${color}" stroke="#ffffff" stroke-width="1.5" stroke-linejoin="round"/>
+              </svg>
+              <div class="wind-speed-pill" style="border-color:${color};">
+                ${st.isHome ? '🏠 ' : ''}${Math.round(speed)}<small style="font-size:0.65rem;"> km/h</small>
+                ${gusts > 35 ? `<span style="color:#f97316; font-weight:800;">⚡${Math.round(gusts)}</span>` : ''}
+              </div>
+            </div>
+          `,
+          iconSize: [60, 48],
+          iconAnchor: [30, 24],
+        });
+
+        const cardinal = this._getWindCardinal(dir);
+
+        const marker = L.marker([st.lat, st.lon], { icon: arrowIcon })
+          .bindPopup(`
+            <div style="font-family:sans-serif; min-width:180px;">
+              <b style="font-size:1rem; color:#f8fafc;">💨 ${st.name}</b>
+              <hr style="border:0; border-top:1px solid rgba(255,255,255,0.15); margin:6px 0;">
+              <div>Vitesse moyenne : <b style="color:${color}; font-size:1.1rem;">${speed.toFixed(1)} km/h</b></div>
+              <div>Rafales maximales : <b style="color:${gusts > 45 ? '#f97316' : '#f8fafc'};">${gusts.toFixed(1)} km/h</b></div>
+              <div>Direction du flux : <b>${dir}° (${cardinal})</b></div>
+              ${st.isHome ? '<div style="color:#38bdf8; font-weight:700; margin-top:4px;">📍 Votre domicile</div>' : ''}
+              ${gusts > 45 ? '<div style="color:#ef4444; font-size:0.8rem; margin-top:4px;">⚠️ Alerte vent fort pour stores bannes</div>' : ''}
+            </div>
+          `);
+
+        this._colorOverlayGroup.addLayer(halo);
+        this._colorOverlayGroup.addLayer(marker);
+      });
+    }
+
+    async _drawAqiZones(entities) {
+      if (!this._map || !this._colorOverlayGroup) return;
+      this._colorOverlayGroup.clearLayers();
+
+      const stations = await this._getRegionalWeatherData(entities);
+      const radius = this._getAdaptiveHaloRadius();
+
+      stations.forEach((st) => {
+        if (st.aqi === null) return;
+        const aqi = st.aqi;
+
+        let color = "#10b981"; // Bon
+        let label = "Bon";
+        if (aqi > 80) { color = "#a855f7"; label = "Très mauvais"; }
+        else if (aqi > 60) { color = "#ef4444"; label = "Mauvais"; }
+        else if (aqi > 40) { color = "#f97316"; label = "Dégradé"; }
+        else if (aqi > 20) { color = "#eab308"; label = "Moyen"; }
+
+        // Halo de dispersion atmosphérique
+        const halo = L.circle([st.lat, st.lon], {
+          radius: radius * 1.1,
+          color: color,
+          fillColor: color,
+          fillOpacity: 0.30,
+          weight: 1.5,
+        });
+
+        const badgeIcon = L.divIcon({
+          className: "meteo-marker-div",
+          html: `
+            <div class="meteo-badge aqi-badge ${st.isHome ? 'home-station' : ''}" style="background:${color};" title="${st.name} : AQI ${Math.round(aqi)} (${label})">
+              ${st.isHome ? '<span class="badge-home-icon">🏠</span>' : '😷 '}
+              <span>AQI ${Math.round(aqi)}</span>
+            </div>
+          `,
+          iconSize: [85, 28],
+          iconAnchor: [42, 14],
+        });
+
+        const marker = L.marker([st.lat, st.lon], { icon: badgeIcon })
+          .bindPopup(`
+            <div style="font-family:sans-serif; min-width:180px;">
+              <b style="font-size:1rem; color:#f8fafc;">😷 ${st.name}</b>
+              <hr style="border:0; border-top:1px solid rgba(255,255,255,0.15); margin:6px 0;">
+              <div>Qualité de l'air : <b style="color:${color}; font-size:1.1rem;">AQI ${Math.round(aqi)} (${label})</b></div>
+              ${st.pm25 !== null ? `<div>Particules PM2.5 : <b>${st.pm25} µg/m³</b></div>` : ''}
+              ${st.pm10 !== null ? `<div>Particules PM10 : <b>${st.pm10} µg/m³</b></div>` : ''}
+              ${st.isHome ? '<div style="color:#38bdf8; font-weight:700; margin-top:4px;">📍 Votre station de référence</div>' : ''}
+            </div>
+          `);
+
+        this._colorOverlayGroup.addLayer(halo);
+        this._colorOverlayGroup.addLayer(marker);
+      });
+    }
+
+    async _drawPollenZones(entities) {
+      if (!this._map || !this._colorOverlayGroup) return;
+      this._colorOverlayGroup.clearLayers();
+
+      const stations = await this._getRegionalWeatherData(entities);
+      const radius = this._getAdaptiveHaloRadius();
+
+      stations.forEach((st) => {
+        const grass = st.pollenGrass ?? 0;
+        const birch = st.pollenBirch ?? 0;
+        const ragweed = st.pollenRagweed ?? 0;
+        const maxPollen = Math.max(grass, birch, ragweed);
+
+        let color = "#38bdf8"; // Nul
+        let risk = "Nul";
+        let dominant = "Aucun";
+        if (maxPollen > 50) { color = "#ef4444"; risk = "Très élevé"; }
+        else if (maxPollen > 20) { color = "#f97316"; risk = "Élevé"; }
+        else if (maxPollen > 5) { color = "#eab308"; risk = "Modéré"; }
+        else if (maxPollen > 1) { color = "#22c55e"; risk = "Faible"; }
+
+        if (grass >= birch && grass >= ragweed && grass > 0) dominant = "Graminées";
+        else if (birch >= grass && birch >= ragweed && birch > 0) dominant = "Bouleau";
+        else if (ragweed > 0) dominant = "Ambroisie";
+
+        const halo = L.circle([st.lat, st.lon], {
+          radius: radius,
+          color: color,
+          fillColor: color,
+          fillOpacity: 0.28,
+          weight: 1.5,
+        });
+
+        const badgeIcon = L.divIcon({
+          className: "meteo-marker-div",
+          html: `
+            <div class="meteo-badge pollen-badge ${st.isHome ? 'home-station' : ''}" style="background:${color};" title="${st.name} : Risque ${risk}">
+              ${st.isHome ? '🏠 ' : '🌾 '}
+              <span>${risk}</span>
+            </div>
+          `,
+          iconSize: [80, 28],
+          iconAnchor: [40, 14],
+        });
+
+        const marker = L.marker([st.lat, st.lon], { icon: badgeIcon })
+          .bindPopup(`
+            <div style="font-family:sans-serif; min-width:180px;">
+              <b style="font-size:1rem; color:#f8fafc;">🌾 ${st.name}</b>
+              <hr style="border:0; border-top:1px solid rgba(255,255,255,0.15); margin:6px 0;">
+              <div>Risque allergique : <b style="color:${color}; font-size:1.1rem;">${risk}</b></div>
+              <div>Pollen prédominant : <b>${dominant}</b></div>
+              <div>Graminées : <b>${grass} grains/m³</b></div>
+              <div>Bouleau : <b>${birch} grains/m³</b></div>
+              <div>Ambroisie : <b>${ragweed} grains/m³</b></div>
+              ${st.isHome ? '<div style="color:#38bdf8; font-weight:700; margin-top:4px;">📍 Votre domicile</div>' : ''}
+            </div>
+          `);
+
+        this._colorOverlayGroup.addLayer(halo);
+        this._colorOverlayGroup.addLayer(marker);
+      });
     }
 
     _updateLegend(layerName) {
@@ -2064,7 +2537,8 @@
         title.textContent = "Risque Pollens :";
         html = `
           <div class="legend-item"><div class="legend-box" style="background:#38bdf8;"></div> Nul</div>
-          <div class="legend-item"><div class="legend-box" style="background:#eab308;"></div> Faible / Moyen</div>
+          <div class="legend-item"><div class="legend-box" style="background:#22c55e;"></div> Faible</div>
+          <div class="legend-item"><div class="legend-box" style="background:#eab308;"></div> Modéré</div>
           <div class="legend-item"><div class="legend-box" style="background:#f97316;"></div> Élevé</div>
           <div class="legend-item"><div class="legend-box" style="background:#ef4444;"></div> Très élevé</div>
         `;
@@ -2072,22 +2546,26 @@
         title.textContent = "Températures :";
         html = `
           <div class="legend-item"><div class="legend-box" style="background:#0284c7;"></div> <0°C</div>
-          <div class="legend-item"><div class="legend-box" style="background:#38bdf8;"></div> 0-10°C</div>
-          <div class="legend-item"><div class="legend-box" style="background:#22c55e;"></div> 10-20°C</div>
-          <div class="legend-item"><div class="legend-box" style="background:#f59e0b;"></div> 20-28°C</div>
-          <div class="legend-item"><div class="legend-box" style="background:#dc2626;"></div> >28°C</div>
+          <div class="legend-item"><div class="legend-box" style="background:#38bdf8;"></div> 0-8°C</div>
+          <div class="legend-item"><div class="legend-box" style="background:#10b981;"></div> 8-16°C</div>
+          <div class="legend-item"><div class="legend-box" style="background:#22c55e;"></div> 16-22°C</div>
+          <div class="legend-item"><div class="legend-box" style="background:#f59e0b;"></div> 22-27°C</div>
+          <div class="legend-item"><div class="legend-box" style="background:#f97316;"></div> 27-33°C</div>
+          <div class="legend-item"><div class="legend-box" style="background:#dc2626;"></div> >33°C</div>
         `;
       } else if (layerName === "wind") {
-        title.textContent = "Rafales :";
+        title.textContent = "Vitesse du Vent :";
         html = `
-          <div class="legend-item"><div class="legend-box" style="background:#22c55e;"></div> <25 km/h</div>
-          <div class="legend-item"><div class="legend-box" style="background:#06b6d4;"></div> 25-45 km/h</div>
-          <div class="legend-item"><div class="legend-box" style="background:#f97316;"></div> 45-65 km/h</div>
-          <div class="legend-item"><div class="legend-box" style="background:#dc2626;"></div> >65 km/h</div>
+          <div class="legend-item"><div class="legend-box" style="background:#06b6d4;"></div> <15 km/h</div>
+          <div class="legend-item"><div class="legend-box" style="background:#22c55e;"></div> 15-30 km/h</div>
+          <div class="legend-item"><div class="legend-box" style="background:#f59e0b;"></div> 30-50 km/h</div>
+          <div class="legend-item"><div class="legend-box" style="background:#f97316;"></div> 50-70 km/h (Alerte)</div>
+          <div class="legend-item"><div class="legend-box" style="background:#dc2626;"></div> >70 km/h</div>
         `;
       }
       steps.innerHTML = html;
     }
+
 
     _updateData() {
       const root = this.shadowRoot;
