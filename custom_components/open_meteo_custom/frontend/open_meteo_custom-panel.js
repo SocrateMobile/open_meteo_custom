@@ -1,5 +1,5 @@
 /**
- * Open-Meteo Custom — Panneau Latéral Interactif & Carte Multi-Couches (v1.4.9)
+ * Open-Meteo Custom — Panneau Latéral Interactif & Carte Multi-Couches (v1.4.10)
  * 
  * Fonctionnalités :
  * 1. Carte interactive Leaflet intégrée 100% locale avec zoom / dézoom / recentrage.
@@ -395,11 +395,49 @@
         }
 
         .container {
-          max-width: 1400px;
+          max-width: 1650px;
           margin: 0 auto;
           display: flex;
           flex-direction: column;
           gap: 20px;
+        }
+
+        /* SPLIT LAYOUT : CARTE A GAUCHE, AUTRES ELEMENTS A DROITE */
+        .split-layout {
+          display: grid;
+          grid-template-columns: 1.15fr 0.85fr;
+          gap: 20px;
+          align-items: stretch;
+        }
+
+        .split-left {
+          display: flex;
+          flex-direction: column;
+          min-width: 0;
+        }
+
+        .split-right {
+          display: flex;
+          flex-direction: column;
+          min-width: 0;
+        }
+
+        .split-right .dashboard-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+          gap: 16px;
+          height: 100%;
+        }
+
+        .hourly-card {
+          width: 100%;
+          box-sizing: border-box;
+        }
+
+        @media (max-width: 1100px) {
+          .split-layout {
+            grid-template-columns: 1fr;
+          }
         }
 
         /* HEADER */
@@ -657,6 +695,10 @@
           padding: 18px;
           position: relative;
           box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+          display: flex;
+          flex-direction: column;
+          height: 100%;
+          box-sizing: border-box;
         }
 
         .map-header {
@@ -900,9 +942,9 @@
         }
 
         .map-container {
-
           width: 100%;
-          height: 520px;
+          min-height: 520px;
+          flex: 1;
           border-radius: 16px;
           overflow: hidden;
           position: relative;
@@ -1409,7 +1451,10 @@
             Chargement des prévisions en cours...
           </div>
 
-          <!-- MAP CARD WITH FLOATING LAYER SWITCHER -->
+          <!-- SPLIT LAYOUT: CARTE A GAUCHE, AUTRES ELEMENTS A DROITE -->
+          <div class="split-layout">
+            <div class="split-left">
+              <!-- MAP CARD WITH FLOATING LAYER SWITCHER -->
           <div class="map-card">
             <div class="map-header">
               <div class="map-title">
@@ -1453,18 +1498,9 @@
               <div class="legend-steps" id="legend-steps"></div>
             </div>
           </div>
-
-          <!-- 24H HOURLY SCROLL -->
-          <div class="card">
-            <div class="card-header">
-              <div class="card-title">⏱️ Frise Chronologique 24 Heures</div>
             </div>
-            <div class="hourly-scroll" id="hourly-scroll">
-              <div style="color:#94a3b8; font-size:0.9rem;">Chargement des prévisions horaires...</div>
-            </div>
-          </div>
-
-          <!-- DASHBOARD GRID -->
+            <div class="split-right">
+              <!-- DASHBOARD GRID -->
           <div class="dashboard-grid">
             <!-- CURRENT METRICS -->
             <div class="card">
@@ -1567,6 +1603,19 @@
                   <span>Recentrer Carte</span>
                 </button>
               </div>
+            </div>
+          </div>
+            </div>
+          </div>
+
+          <!-- FRISE CHRONOLOGIQUE 24H EN BAS TOUTE LARGEUR -->
+          <!-- 24H HOURLY SCROLL -->
+          <div class="card hourly-card">
+            <div class="card-header">
+              <div class="card-title">⏱️ Frise Chronologique 24 Heures</div>
+            </div>
+            <div class="hourly-scroll" id="hourly-scroll">
+              <div style="color:#94a3b8; font-size:0.9rem;">Chargement des prévisions horaires...</div>
             </div>
           </div>
 
