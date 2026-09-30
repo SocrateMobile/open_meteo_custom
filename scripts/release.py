@@ -58,6 +58,7 @@ def get_token() -> str:
 
 
 def update_version_files(new_ver: str) -> None:
+    # 1. manifest.json (Source unique de vérité)
     with open(MANIFEST_PATH, "r", encoding="utf-8") as f:
         data = json.load(f)
     data["version"] = new_ver
@@ -66,12 +67,16 @@ def update_version_files(new_ver: str) -> None:
         f.write("\n")
     print(f"Updated {MANIFEST_PATH} -> {new_ver}")
 
-    with open(CONST_PATH, "r", encoding="utf-8") as f:
-        content = f.read()
-    new_content = re.sub(r"VERSION\s*=\s*\"[^\"]+\"", f"VERSION = \"{new_ver}\"", content)
-    with open(CONST_PATH, "w", encoding="utf-8") as f:
-        f.write(new_content)
-    print(f"Updated {CONST_PATH} -> {new_ver}")
+    # 2. README.md
+    readme_path = os.path.join(ROOT_DIR, "README.md")
+    if os.path.exists(readme_path):
+        with open(readme_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        content = re.sub(r"Version-\d+\.\d+\.\d+-success\.svg", f"Version-{new_ver}-success.svg", content)
+        content = re.sub(r"alt=\"Version \d+\.\d+\.\d+\"", f"alt=\"Version {new_ver}\"", content)
+        with open(readme_path, "w", encoding="utf-8") as f:
+            f.write(content)
+        print(f"Updated {readme_path} -> {new_ver}")
 
 
 def run_cmd(cmd: list[str]) -> None:
