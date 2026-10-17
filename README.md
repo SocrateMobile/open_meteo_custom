@@ -7,7 +7,8 @@
 <p align="center">
   <a href="https://github.com/hacs/default"><img src="https://img.shields.io/badge/HACS-Custom-41BDF5.svg" alt="HACS Custom" /></a>
   <a href="https://github.com/SocrateMobile/open_meteo_custom/releases"><img src="https://img.shields.io/github/v/release/SocrateMobile/open_meteo_custom?color=blue" alt="GitHub Release" /></a>
-  <img src="https://img.shields.io/badge/Version-1.4.10-success.svg" alt="Version 1.4.10" />
+  <img src="https://img.shields.io/badge/Version-1.4.11-success.svg" alt="Version 1.4.11" />
+  <a href="https://buymeacoffee.com/Socrate"><img src="https://img.shields.io/badge/Buy%20Me%20A%20Coffee-Socrate-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=000000" alt="Buy Me A Coffee"></a>
 </p>
 
 Intégration météo et qualité de l'air haute performance pour Home Assistant, basée sur l'API gratuite Open-Meteo et le géocodage de la Base Adresse Nationale (BAN).
@@ -97,3 +98,13 @@ recorder:
    - Définir le **Seuil d'alerte de vent fort** (ex. 50 km/h).
    - Régler la fréquence de rafraîchissement (15 min, 30 min, 60 min).
    - Activer ou désactiver l'interrogation de la qualité de l'air et des pollens.
+
+---
+
+## ☕ Soutenir le projet / Support
+
+Si vous appréciez cette intégration et souhaitez soutenir son développement continu ainsi que la maintenance des futures versions :
+
+<a href="https://buymeacoffee.com/Socrate" target="_blank">
+  <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="50" width="210">
+</a>
