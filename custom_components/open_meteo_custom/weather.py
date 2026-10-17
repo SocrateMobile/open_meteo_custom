@@ -13,6 +13,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     CONF_LATITUDE,
     CONF_LONGITUDE,
+    UnitOfLength,
     UnitOfPressure,
     UnitOfSpeed,
     UnitOfTemperature,
@@ -76,6 +77,7 @@ class OpenMeteoWeather(CoordinatorEntity[DataUpdateCoordinator[dict[str, Any]]],
     _attr_temperature_unit = UnitOfTemperature.CELSIUS
     _attr_native_wind_speed_unit = UnitOfSpeed.KILOMETERS_PER_HOUR
     _attr_native_pressure_unit = UnitOfPressure.HPA
+    _attr_native_precipitation_unit = UnitOfLength.MILLIMETERS
     _attr_has_entity_name = True
     _attr_name = None
 
@@ -200,7 +202,6 @@ class OpenMeteoWeather(CoordinatorEntity[DataUpdateCoordinator[dict[str, Any]]],
                         native_temperature=float(t_max[i]) if i < len(t_max) and t_max[i] is not None else None,
                         native_templow=float(t_min[i]) if i < len(t_min) and t_min[i] is not None else None,
                         native_precipitation=float(precip[i]) if i < len(precip) and precip[i] is not None else None,
-                        native_precipitation_unit="mm",
                         native_wind_gust_speed=float(gusts[i]) if i < len(gusts) and gusts[i] is not None else None,
                     )
                 )

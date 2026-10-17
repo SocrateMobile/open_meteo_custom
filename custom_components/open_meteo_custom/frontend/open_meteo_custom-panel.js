@@ -46,10 +46,15 @@
         };
         document.head.appendChild(script);
       } else {
+        let attempts = 0;
         const interval = setInterval(() => {
+          attempts++;
           if (window.L && window.L.map) {
             clearInterval(interval);
             resolve(window.L);
+          } else if (attempts > 60) {
+            clearInterval(interval);
+            resolve(null);
           }
         }, 50);
       }
