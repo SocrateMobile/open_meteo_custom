@@ -1,0 +1,91 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Open-Meteo Custom",
+        "description": "Scegli il metodo di localizzazione per ottenere previsioni meteo, qualità dell'aria e pollini.",
+        "menu_options": {
+          "postal": "Codice Postale (Francia)",
+          "home_assistant": "Coordinate Home Assistant",
+          "manual": "Coordinate GPS personalizzate"
+        }
+      },
+      "postal": {
+        "title": "Posizione tramite Codice Postale",
+        "description": "Inserisci un codice postale francese. Le coordinate verranno geocodificate automaticamente tramite Base Adresse Nationale.",
+        "data": {
+          "postal_code": "Codice Postale"
+        }
+      },
+      "home_assistant": {
+        "title": "Coordinate Home Assistant",
+        "description": "Usa le coordinate GPS di casa configurate ({lat}, {lon}).",
+        "data": {
+          "location_name": "Nome Posizione"
+        }
+      },
+      "manual": {
+        "title": "Coordinate Manuali",
+        "description": "Inserisci direttamente le coordinate di latitudine e longitudine.",
+        "data": {
+          "location_name": "Nome Posizione",
+          "latitude": "Latitudine",
+          "longitude": "Longitudine"
+        }
+      }
+    },
+    "error": {
+      "invalid_postal_code": "Codice postale non trovato. Verifica i dati inseriti.",
+      "invalid_coordinates": "Coordinate geografiche non valide."
+    },
+    "abort": {
+      "already_configured": "Questa posizione è già configurata in Home Assistant."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opzioni Open-Meteo Custom",
+        "description": "Personalizza l'intervallo di aggiornamento, gli avvisi e la visibilità del pannello laterale.",
+        "data": {
+          "update_interval": "Intervallo di aggiornamento",
+          "enable_air_quality": "Attiva Qualità dell'Aria e Pollini",
+          "show_sidebar_panel": "Mostra pannello interattivo nella barra laterale",
+          "wind_gust_threshold": "Soglia avviso vento forte (km/h)",
+          "carto_api_key": "Chiave API CARTO (opzionale per CartoDB Dark Matter)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "aqi_eu": { "name": "Qualità dell'Aria (AQI Europa)" },
+      "aqi_us": { "name": "Qualità dell'Aria (AQI USA)" },
+      "aqi_level": { "name": "Livello Qualità dell'Aria" },
+      "pm2_5": { "name": "Particolato PM2.5" },
+      "pm10": { "name": "Particolato PM10" },
+      "nitrogen_dioxide": { "name": "Biossido di Azoto (NO2)" },
+      "ozone": { "name": "Ozono (O3)" },
+      "uv_index": { "name": "Indice UV Attuale" },
+      "uv_index_max": { "name": "Indice UV Massimo" },
+      "sunshine_duration": { "name": "Durata Insolazione" },
+      "precipitation_sum": { "name": "Precipitazioni Oggi" },
+      "wind_gusts_max": { "name": "Raffica Massima" },
+      "snowfall_sum": { "name": "Neve Oggi" },
+      "temperature": { "name": "Temperatura Attuale" },
+      "apparent_temperature": { "name": "Temperatura Percepita" },
+      "grass_pollen": { "name": "Polline Graminacee" },
+      "birch_pollen": { "name": "Polline Betulla" },
+      "olive_pollen": { "name": "Polline Olivo" },
+      "mugwort_pollen": { "name": "Polline Artemisia" },
+      "ragweed_pollen": { "name": "Polline Ambrosia" },
+      "alder_pollen": { "name": "Polline Ontano" }
+    },
+    "binary_sensor": {
+      "freeze_risk": { "name": "Rischio Gelo (24h)" },
+      "strong_wind_alert": { "name": "Avviso Vento Forte" },
+      "thunderstorm_risk": { "name": "Rischio Temporale / Grandine" },
+      "pollution_peak": { "name": "Picco di Inquinamento" }
+    }
+  }
+}

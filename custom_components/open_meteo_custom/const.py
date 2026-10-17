@@ -20,7 +20,7 @@ import os
 
 DOMAIN = "open_meteo_custom"
 
-VERSION = "1.4.10"
+VERSION = "1.4.13"
 
 MANUFACTURER = "Open-Meteo"
 ATTRIBUTION = "Données météo fournies par Open-Meteo & Base Adresse Nationale"
