@@ -7,7 +7,7 @@
 <p align="center">
   <a href="https://github.com/hacs/default"><img src="https://img.shields.io/badge/HACS-Custom-41BDF5.svg" alt="HACS Custom" /></a>
   <a href="https://github.com/SocrateMobile/open_meteo_custom/releases"><img src="https://img.shields.io/github/v/release/SocrateMobile/open_meteo_custom?color=blue" alt="GitHub Release" /></a>
-  <img src="https://img.shields.io/badge/Version-1.4.12-success.svg" alt="Version 1.4.12" />
+  <img src="https://img.shields.io/badge/Version-1.4.13-success.svg" alt="Version 1.4.13" />
   <a href="https://buymeacoffee.com/Socrate"><img src="https://img.shields.io/badge/Buy%20Me%20A%20Coffee-Socrate-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=000000" alt="Buy Me A Coffee"></a>
 </p>
 
