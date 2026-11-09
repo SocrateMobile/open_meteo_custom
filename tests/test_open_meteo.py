@@ -8,6 +8,10 @@ import sys
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if REPO_ROOT not in sys.path:
+    sys.path.insert(0, REPO_ROOT)
+
 # --- MOCKING HOME ASSISTANT STUBS FOR STANDALONE TESTING ---
 def setup_ha_stubs():
     import types
@@ -282,7 +286,7 @@ class TestOpenMeteoWeather(unittest.IsolatedAsyncioTestCase):
         self.config_entry.title = "Open-Meteo 95880"
 
     def test_weather_properties(self):
-        from custom_components.open_meteo_custom.weather import OpenMeteoWeather
+        from custom_components.domolink_meteo.weather import OpenMeteoWeather
 
         weather = OpenMeteoWeather(self.coordinator, self.config_entry)
         self.assertEqual(weather.condition, "partlycloudy")
@@ -295,7 +299,7 @@ class TestOpenMeteoWeather(unittest.IsolatedAsyncioTestCase):
 
     def test_attributes_under_16kb_recorder_limit(self):
         """CRITICAL: Test that extra_state_attributes is strictly lightweight (< 1 KB) to prevent 16KB recorder crash."""
-        from custom_components.open_meteo_custom.weather import OpenMeteoWeather
+        from custom_components.domolink_meteo.weather import OpenMeteoWeather
 
         weather = OpenMeteoWeather(self.coordinator, self.config_entry)
         attrs = weather.extra_state_attributes
@@ -315,7 +319,7 @@ class TestOpenMeteoWeather(unittest.IsolatedAsyncioTestCase):
 
     async def test_async_forecasts(self):
         """Test daily and hourly async forecast generation."""
-        from custom_components.open_meteo_custom.weather import OpenMeteoWeather
+        from custom_components.domolink_meteo.weather import OpenMeteoWeather
 
         weather = OpenMeteoWeather(self.coordinator, self.config_entry)
         daily = await weather.async_forecast_daily()
@@ -349,7 +353,7 @@ class TestOpenMeteoSensors(unittest.IsolatedAsyncioTestCase):
         self.config_entry.options = {}
 
     def test_sensor_creation_and_values(self):
-        from custom_components.open_meteo_custom.sensor import SENSOR_DESCRIPTIONS, OpenMeteoSensor
+        from custom_components.domolink_meteo.sensor import SENSOR_DESCRIPTIONS, OpenMeteoSensor
 
         sensors = [
             OpenMeteoSensor(self.coordinator, self.config_entry, desc)
@@ -398,7 +402,7 @@ class TestBinarySensors(unittest.IsolatedAsyncioTestCase):
         self.config_entry.options = {"wind_gust_threshold": 50.0}
 
     def test_binary_sensor_alerts(self):
-        from custom_components.open_meteo_custom.binary_sensor import (
+        from custom_components.domolink_meteo.binary_sensor import (
             BINARY_SENSOR_DESCRIPTIONS,
             OpenMeteoBinarySensor,
         )
@@ -447,7 +451,7 @@ class TestConfigFlow(unittest.IsolatedAsyncioTestCase):
     """Tests for ConfigFlow and OptionsFlow."""
 
     async def test_postal_geocode_success(self):
-        from custom_components.open_meteo_custom.config_flow import async_geocode_postal_code
+        from custom_components.domolink_meteo.config_flow import async_geocode_postal_code
 
         mock_resp = AsyncMock()
         mock_resp.status = 200
@@ -464,7 +468,7 @@ class TestConfigFlow(unittest.IsolatedAsyncioTestCase):
         session.get = MagicMock(return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_resp)))
 
         hass = MagicMock()
-        with patch("custom_components.open_meteo_custom.config_flow.async_get_clientsession", return_value=session):
+        with patch("custom_components.domolink_meteo.config_flow.async_get_clientsession", return_value=session):
             res = await async_geocode_postal_code(hass, "75001")
             self.assertIsNotNone(res)
             self.assertEqual(res["latitude"], 48.8566)
@@ -472,7 +476,7 @@ class TestConfigFlow(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(res["city"], "Paris")
 
     async def test_options_flow(self):
-        from custom_components.open_meteo_custom.config_flow import OpenMeteoOptionsFlow
+        from custom_components.domolink_meteo.config_flow import OpenMeteoOptionsFlow
 
         entry = MagicMock()
         entry.options = {
@@ -506,11 +510,12 @@ class TestSidebarPanelRegistration(unittest.IsolatedAsyncioTestCase):
     """Tests for sidebar panel registration and unregistration."""
 
     async def test_panel_registration(self):
-        from custom_components.open_meteo_custom import async_register_frontend_and_panel
+        from custom_components.domolink_meteo import async_register_frontend_and_panel
         from homeassistant.components import frontend
 
         hass = MagicMock()
         hass.http = MagicMock()
+        hass.async_add_executor_job = AsyncMock(side_effect=lambda fn, *a: fn(*a))
 
         # 1. Enabled panel
         entry = MagicMock()
@@ -538,7 +543,7 @@ class TestOpenMeteoApi(unittest.IsolatedAsyncioTestCase):
     """Tests for OpenMeteoApi client."""
 
     async def test_api_forecast_and_aqi(self):
-        from custom_components.open_meteo_custom.api import OpenMeteoApi
+        from custom_components.domolink_meteo.api import OpenMeteoApi
 
         mock_forecast_resp = AsyncMock()
         mock_forecast_resp.status = 200
@@ -557,7 +562,7 @@ class TestOpenMeteoApi(unittest.IsolatedAsyncioTestCase):
         ])
 
         hass = MagicMock()
-        with patch("custom_components.open_meteo_custom.api.async_get_clientsession", return_value=session):
+        with patch("custom_components.domolink_meteo.api.async_get_clientsession", return_value=session):
             api = OpenMeteoApi(hass, 48.85, 2.35)
             forecast = await api.get_forecast()
             self.assertIsNotNone(forecast)
@@ -568,6 +573,40 @@ class TestOpenMeteoApi(unittest.IsolatedAsyncioTestCase):
             self.assertIsNotNone(aqi)
             self.assertIn("current", aqi)
             self.assertIn("grass_pollen", aqi["current"])
+
+
+class TestManifestAndTranslations(unittest.TestCase):
+    """Verify manifest.json, hacs.json, and translations parity."""
+
+    def test_manifest_and_translations(self):
+        comp_dir = os.path.join(REPO_ROOT, "custom_components", "domolink_meteo")
+        manifest_p = os.path.join(comp_dir, "manifest.json")
+        with open(manifest_p, "r", encoding="utf-8") as f:
+            manifest = json.load(f)
+
+        self.assertEqual(manifest["domain"], "domolink_meteo")
+        self.assertEqual(manifest["name"], "DomoLink Météo & Pollens")
+        self.assertEqual(manifest["version"], "1.5.0")
+        self.assertEqual(manifest["codeowners"], ["@SocrateMobile"])
+
+        fr_p = os.path.join(comp_dir, "translations", "fr.json")
+        en_p = os.path.join(comp_dir, "translations", "en.json")
+        with open(fr_p, "r", encoding="utf-8") as f:
+            fr = json.load(f)
+        with open(en_p, "r", encoding="utf-8") as f:
+            en = json.load(f)
+
+        def get_keys(d, p=""):
+            keys = set()
+            for k, v in d.items():
+                cur = f"{p}.{k}" if p else k
+                if isinstance(v, dict):
+                    keys.update(get_keys(v, cur))
+                else:
+                    keys.add(cur)
+            return keys
+
+        self.assertEqual(get_keys(fr), get_keys(en))
 
 
 if __name__ == "__main__":

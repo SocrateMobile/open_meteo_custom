@@ -18,11 +18,12 @@ from homeassistant.components.weather import (
 import json
 import os
 
-DOMAIN = "open_meteo_custom"
+DOMAIN = "domolink_meteo"
+NAME = "DomoLink Météo & Pollens"
 
-VERSION = "1.4.13"
+VERSION = "1.5.0"
 
-MANUFACTURER = "Open-Meteo"
+MANUFACTURER = "DomoLink"
 ATTRIBUTION = "Données météo fournies par Open-Meteo & Base Adresse Nationale"
 
 # Configuration keys
@@ -41,12 +42,12 @@ DEFAULT_WIND_GUST_THRESHOLD = 50.0  # km/h
 DEFAULT_CARTO_API_KEY = ""
 
 # Panel constants
-PANEL_URL_PATH = "open_meteo_custom"
-PANEL_NAME = "open-meteo-custom-panel"
-PANEL_TITLE = "Open-Meteo"
+PANEL_URL_PATH = "domolink_meteo"
+PANEL_NAME = "domolink-meteo-panel"
+PANEL_TITLE = "DomoLink Météo"
 PANEL_ICON = "mdi:weather-partly-cloudy"
-FRONTEND_URL_PATH = "/open_meteo_custom_frontend"
-FRONTEND_FILE_NAME = "open_meteo_custom-panel.js"
+FRONTEND_URL_PATH = "/domolink_meteo_frontend"
+FRONTEND_FILE_NAME = "domolink-meteo-panel.js"
 
 # Sensor keys
 SENSOR_AQI_EU = "aqi_eu"

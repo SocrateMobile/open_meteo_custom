@@ -47,7 +47,7 @@ PLATFORMS: list[Platform] = [Platform.WEATHER, Platform.SENSOR, Platform.BINARY_
 async def async_register_frontend_and_panel(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Enregistre le chemin statique et le panneau latéral dans Home Assistant."""
     frontend_dir = os.path.join(os.path.dirname(__file__), "frontend")
-    if os.path.exists(frontend_dir):
+    if await hass.async_add_executor_job(os.path.exists, frontend_dir):
         if hasattr(hass.http, "async_register_static_paths") and StaticPathConfig is not None:
             try:
                 await hass.http.async_register_static_paths(

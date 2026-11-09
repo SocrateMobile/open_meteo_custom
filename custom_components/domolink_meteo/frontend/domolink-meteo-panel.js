@@ -17,8 +17,18 @@
  */
 
 (function () {
-  const LEAFLET_CSS_URL = "/open_meteo_custom_frontend/vendor/leaflet.css";
-  const LEAFLET_JS_URL = "/open_meteo_custom_frontend/vendor/leaflet.js";
+  const LEAFLET_CSS_URL = "/domolink_meteo_frontend/vendor/leaflet.css";
+  const LEAFLET_JS_URL = "/domolink_meteo_frontend/vendor/leaflet.js";
+
+  function escapeHtml(str) {
+    if (str === null || str === undefined) return "";
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
 
   function ensureLeaflet() {
     return new Promise((resolve) => {
@@ -173,7 +183,7 @@
       if (this._map) {
         if (this._homeMarker) {
           this._homeMarker.setLatLng([this._lat, this._lon]);
-          this._homeMarker.setPopupContent(`<b>📍 ${this._cleanLocationName()}</b><br>Point de mesure Open-Meteo`);
+          this._homeMarker.setPopupContent(`<b>📍 ${escapeHtml(this._cleanLocationName())}</b><br>Point de mesure DomoLink Météo`);
         }
         this._map.panTo([this._lat, this._lon]);
         if (this._activeLayer && this._activeLayer !== "rain") {
@@ -1433,9 +1443,9 @@
           <!-- HEADER -->
           <div class="header">
             <div class="header-left">
-              <img class="header-logo" src="/open_meteo_custom_frontend/icon.png" alt="Logo" onerror="this.src='/local/icon.png';" />
+              <img class="header-logo" src="/domolink_meteo_frontend/icon.png" alt="Logo" onerror="this.src='/local/icon.png';" />
               <div class="header-title">
-                <h1>Open-Meteo • <span id="loc-name">${this._cleanLocationName()}</span></h1>
+                <h1>Open-Meteo • <span id="loc-name">${escapeHtml(this._cleanLocationName())}</span></h1>
                 <p>Station Météorologique & Surveillance Environnementale Haute Résolution</p>
               </div>
             </div>
@@ -1467,7 +1477,7 @@
                 <span id="map-layer-title">Radar des Précipitations en Direct</span>
               </div>
               <div class="map-controls-group">
-                <button class="btn-locate" id="btn-locate-home" title="Recentrer et zoomer sur ${this._cleanLocationName()}">🎯 Centrer (${this._cleanLocationName()})</button>
+                <button class="btn-locate" id="btn-locate-home" title="Recentrer et zoomer sur ${escapeHtml(this._cleanLocationName())}">🎯 Centrer (${escapeHtml(this._cleanLocationName())})</button>
                 <div class="basemap-switcher" id="basemap-switcher">
                   <button class="basemap-btn active" data-basemap="satellite" title="Vue Satellite HD (Esri World Imagery)">🛰️ Satellite</button>
                   <button class="basemap-btn" data-basemap="hybrid" title="Satellite Hybride (Photos + Noms de Villes et Rues)">🌍 Hybride</button>
@@ -1633,7 +1643,7 @@
                 <i>Note : Si vous n'avez pas de clé, le fond <b>🌙 Sombre (Esri)</b> est déjà actif par défaut, 100% gratuit et sans aucun filigrane !</i>
               </p>
               <div class="key-input-group">
-                <input type="text" class="key-input" id="carto-key-input" placeholder="Collez votre clé API CARTO..." value="${this._cartoApiKey || ''}" />
+                <input type="text" class="key-input" id="carto-key-input" placeholder="Collez votre clé API CARTO..." value="${escapeHtml(this._cartoApiKey || '')}" />
                 <button class="btn-modal-save" id="btn-save-carto-key">💾 Sauvegarder</button>
                 <button class="btn-modal-clear" id="btn-clear-carto-key">Effacer</button>
               </div>
@@ -1921,7 +1931,7 @@
       });
       this._homeMarker = L.marker([this._lat, this._lon], { icon: homeIcon })
         .addTo(this._map)
-        .bindPopup(`<b>📍 ${this._cleanLocationName()}</b><br>Point de mesure Open-Meteo`);
+        .bindPopup(`<b>📍 ${escapeHtml(this._cleanLocationName())}</b><br>Point de mesure DomoLink Météo`);
 
       this._colorOverlayGroup = L.layerGroup().addTo(this._map);
 
@@ -2713,8 +2723,8 @@
           pHtml += `
             <div class="pollen-row">
               <div class="pollen-info">
-                <span class="pollen-name">🌾 ${p.name}</span>
-                <span class="pollen-val">${val} grains/m³</span>
+                <span class="pollen-name">🌾 ${escapeHtml(p.name)}</span>
+                <span class="pollen-val">${escapeHtml(val)} grains/m³</span>
               </div>
               <div class="pollen-progress-bg">
                 <div class="pollen-progress-fill" style="width:${Math.max(4, pct)}%; background:${barColor};"></div>
@@ -2772,6 +2782,11 @@
     }
   }
 
-  customElements.define("open-meteo-custom-panel", OpenMeteoCustomPanel);
+  if (!customElements.get("domolink-meteo-panel")) {
+    customElements.define("domolink-meteo-panel", OpenMeteoCustomPanel);
+  }
+  if (!customElements.get("open-meteo-custom-panel")) {
+    customElements.define("open-meteo-custom-panel", OpenMeteoCustomPanel);
+  }
   console.info("Open-Meteo Custom: Panneau latéral tactile v1.4.3 enregistré.");
 })();
