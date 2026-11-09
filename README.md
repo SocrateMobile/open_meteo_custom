@@ -1,3 +1,7 @@
+[![Documentation Officielle](https://img.shields.io/badge/Documentation-socratemobile.fr-06b6d4.svg?logo=googlechrome&logoColor=white)](https://socratemobile.fr/integration.html?id=open-meteo-custom)
+
+> 🌐 **Site officiel & Documentation complète** : Retrouvez le guide d'installation pas à pas, les entités supportées et les exemples d'automatisations sur [socratemobile.fr](https://socratemobile.fr/integration.html?id=open-meteo-custom).
+
 <p align="center">
   <img src="icon.png" alt="Open-Meteo Custom Logo" width="128" height="128" />
 </p>
