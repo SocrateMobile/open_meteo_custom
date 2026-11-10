@@ -18,8 +18,8 @@ REPO_NAME = "open_meteo_custom"
 GITHUB_REPO = f"{REPO_OWNER}/{REPO_NAME}"
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-MANIFEST_PATH = os.path.join(ROOT_DIR, "custom_components", "open_meteo_custom", "manifest.json")
-CONST_PATH = os.path.join(ROOT_DIR, "custom_components", "open_meteo_custom", "const.py")
+MANIFEST_PATH = os.path.join(ROOT_DIR, "custom_components", "domolink_meteo", "manifest.json")
+CONST_PATH = os.path.join(ROOT_DIR, "custom_components", "domolink_meteo", "const.py")
 
 
 def get_token() -> str:

@@ -109,7 +109,7 @@ class OpenMeteoCustomConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 await self.async_set_unique_id(f"{DOMAIN}_{lat}_{lon}")
                 self._abort_if_unique_id_configured()
 
-                title = f"Open-Meteo {city} ({postal_code})"
+                title = f"DomoLink Météo {city} ({postal_code})"
                 return self.async_create_entry(
                     title=title,
                     data={
@@ -137,7 +137,7 @@ class OpenMeteoCustomConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             self._abort_if_unique_id_configured()
 
             return self.async_create_entry(
-                title=f"Open-Meteo {name}",
+                title=f"DomoLink Météo {name}",
                 data={
                     CONF_LOCATION_NAME: name,
                     CONF_LATITUDE: lat,
@@ -170,7 +170,7 @@ class OpenMeteoCustomConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 self._abort_if_unique_id_configured()
 
                 return self.async_create_entry(
-                    title=f"Open-Meteo {name}",
+                    title=f"DomoLink Météo {name}",
                     data={
                         CONF_LOCATION_NAME: name,
                         CONF_LATITUDE: lat,
