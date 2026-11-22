@@ -290,13 +290,6 @@ class OpenMeteoWeather(CoordinatorEntity[DataUpdateCoordinator[dict[str, Any]]],
             if uv_max and len(uv_max) > 0:
                 attributes["today_uv_index_max"] = uv_max[0]
 
-        carto_key = self.config_entry.options.get(
-            CONF_CARTO_API_KEY,
-            self.config_entry.data.get(CONF_CARTO_API_KEY),
-        )
-        if carto_key and isinstance(carto_key, str):
-            attributes["carto_api_key"] = carto_key
-
         # 3. Coordonnées géographiques et code postal
         lat = self.config_entry.data.get(CONF_LATITUDE)
         lon = self.config_entry.data.get(CONF_LONGITUDE)
