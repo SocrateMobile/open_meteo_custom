@@ -21,7 +21,7 @@ import os
 DOMAIN = "domolink_meteo"
 NAME = "DomoLink Météo & Pollens"
 
-VERSION = "1.5.2"
+VERSION = "1.5.3"
 
 MANUFACTURER = "DomoLink"
 ATTRIBUTION = "Données météo fournies par Open-Meteo & Base Adresse Nationale"
